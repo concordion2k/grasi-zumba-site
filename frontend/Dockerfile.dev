@@ -1,0 +1,20 @@
+# Dev-only image for the frontend (Vite dev server with HMR). Production builds are static files
+# synced to S3, not this image.
+FROM node:20-bookworm-slim
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY api/package.json ./api/
+COPY frontend/package.json ./frontend/
+RUN npm ci
+
+# Build shared types (the frontend imports @grasi/shared from its dist).
+COPY shared ./shared
+RUN npm run build:shared
+
+COPY frontend ./frontend
+
+EXPOSE 5173
+# --host binds 0.0.0.0 so the port is reachable from outside the container.
+CMD ["npm", "run", "dev:frontend", "--", "--host"]

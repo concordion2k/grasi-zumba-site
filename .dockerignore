@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/.esbuild
+.git
+.github
+terraform/.terraform
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+*.zip
+coverage
+.DS_Store

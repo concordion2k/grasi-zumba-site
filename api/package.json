@@ -1,0 +1,30 @@
+{
+  "name": "@grasi/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.dev.mjs",
+    "build": "node esbuild.config.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.700.0",
+    "@aws-sdk/client-s3": "^3.700.0",
+    "@aws-sdk/lib-dynamodb": "^3.700.0",
+    "@aws-sdk/s3-request-presigner": "^3.700.0",
+    "@grasi/shared": "*",
+    "hono": "^4.6.13",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@types/aws-lambda": "^8.10.146",
+    "@types/node": "^20.17.9",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,7 @@
+# Copy to backend.hcl and commit (it holds no secrets — just resource names) once you've created the
+# state bucket + lock table (see README). Then enable the backend "s3" block in versions.tf.
+bucket         = "grasi-zumba-tfstate"
+key            = "infra/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "grasi-zumba-tflock"
+encrypt        = true

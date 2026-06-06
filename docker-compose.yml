@@ -1,0 +1,76 @@
+# Local development stack for Grasi Zumba.
+#
+#   docker compose up -d --wait          → LocalStack (DynamoDB + S3) only. Run the apps on the host
+#                                          with `npm run dev` for the fastest hot-reload loop.
+#   docker compose --profile apps up     → everything in Docker (LocalStack + API + frontend).
+#
+# LocalStack emulates AWS, so the same code paths (DynamoDB, presigned S3 uploads) work locally.
+
+services:
+  localstack:
+    image: localstack/localstack:3
+    ports:
+      - '4566:4566' # single edge endpoint for all AWS services
+    environment:
+      - SERVICES=dynamodb,s3
+      - DEBUG=0
+      - PERSISTENCE=0
+    volumes:
+      # Auto-runs once LocalStack is ready: creates the table, TTL, bucket, and CORS.
+      - ./docker/localstack-init.sh:/etc/localstack/init/ready.d/init.sh
+    healthcheck:
+      # Healthy only once the init script has created the table — so `--wait` blocks until usable.
+      test: ['CMD-SHELL', 'awslocal dynamodb describe-table --table-name grasi-zumba-local || exit 1']
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+
+  # ---- Optional: run the app in containers too (profile "apps") ----
+
+  api:
+    profiles: ['apps']
+    build:
+      context: .
+      dockerfile: api/Dockerfile.dev
+    ports:
+      - '8787:8787'
+    environment:
+      - TABLE_NAME=grasi-zumba-local
+      - UPLOADS_BUCKET=grasi-zumba-uploads-local
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      # DynamoDB is called server-side → use the in-network hostname.
+      - DYNAMODB_ENDPOINT=http://localstack:4566
+      # S3 is only ever *presigned* (never called server-side), and the signed URL host must be
+      # reachable by the browser → use localhost, which is port-mapped to LocalStack.
+      - S3_ENDPOINT=http://localhost:4566
+      - S3_FORCE_PATH_STYLE=true
+      - SESSION_SECRET=local-dev-secret-change-me
+      - ADMIN_BOOTSTRAP_EMAILS=admin@example.com
+      - FRONTEND_ORIGIN=http://localhost:5173
+      - COOKIE_SECURE=false
+      - PORT=8787
+    volumes:
+      - ./api/src:/app/api/src
+      - ./shared/src:/app/shared/src
+    depends_on:
+      localstack:
+        condition: service_healthy
+
+  frontend:
+    profiles: ['apps']
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.dev
+    ports:
+      - '5173:5173'
+    environment:
+      - VITE_API_PROXY=http://api:8787
+    volumes:
+      - ./frontend/src:/app/frontend/src
+      - ./frontend/index.html:/app/frontend/index.html
+      - ./frontend/public:/app/frontend/public
+    depends_on:
+      - api

@@ -1,0 +1,303 @@
+/* =========================================================================
+   Grasi Zumba theme — energetic, Brazilian, full of rhythm. 🇧🇷💃
+   Palette nods to Rio: samba pink & orange, tropical green, sunshine yellow,
+   ocean blue. Bold, rounded, playful.
+   ========================================================================= */
+
+:root {
+  /* Brand colors */
+  --c-pink: #ff2e63;
+  --c-pink-dark: #d81b54;
+  --c-orange: #ff7a00;
+  --c-yellow: #ffcc29;
+  --c-green: #00b16a;
+  --c-green-deep: #009c3b;
+  --c-blue: #1d6fb8;
+  --c-blue-deep: #002776;
+  --c-teal: #00c2a8;
+
+  /* Neutrals */
+  --c-ink: #241733;
+  --c-ink-soft: #5b4d6b;
+  --c-paper: #fff8f3;
+  --c-card: #ffffff;
+  --c-line: #f0e2d8;
+
+  /* Signature gradients */
+  --grad-samba: linear-gradient(120deg, var(--c-pink), var(--c-orange) 55%, var(--c-yellow));
+  --grad-tropical: linear-gradient(120deg, var(--c-green), var(--c-teal));
+  --grad-night: linear-gradient(135deg, var(--c-blue-deep), #4a1d6b 70%, var(--c-pink));
+
+  /* Type */
+  --font-display: 'Baloo 2', system-ui, sans-serif;
+  --font-body: 'Poppins', system-ui, -apple-system, sans-serif;
+
+  /* Shape & depth */
+  --radius: 18px;
+  --radius-sm: 12px;
+  --shadow-sm: 0 4px 14px rgba(36, 23, 51, 0.08);
+  --shadow-md: 0 10px 30px rgba(216, 27, 84, 0.16);
+  --shadow-lg: 0 20px 50px rgba(36, 23, 51, 0.18);
+
+  --maxw: 1120px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--c-ink);
+  background:
+    radial-gradient(circle at 12% -5%, rgba(255, 46, 99, 0.1), transparent 40%),
+    radial-gradient(circle at 95% 8%, rgba(0, 194, 168, 0.12), transparent 38%), var(--c-paper);
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  line-height: 1.1;
+  margin: 0 0 0.4em;
+  color: var(--c-ink);
+}
+
+a {
+  color: var(--c-pink-dark);
+  text-decoration: none;
+  font-weight: 600;
+}
+a:hover {
+  color: var(--c-orange);
+}
+
+.container {
+  width: min(100% - 2.5rem, var(--maxw));
+  margin-inline: auto;
+}
+
+.section {
+  padding: clamp(2.5rem, 6vw, 5rem) 0;
+}
+
+/* ---- Buttons ---------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--grad-samba);
+  color: #fff;
+  box-shadow: var(--shadow-md);
+}
+.btn-primary:not(:disabled):hover {
+  transform: translateY(-2px) rotate(-0.5deg);
+  filter: saturate(1.1);
+  color: #fff;
+}
+.btn-tropical {
+  background: var(--grad-tropical);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(0, 177, 106, 0.28);
+}
+.btn-tropical:not(:disabled):hover {
+  transform: translateY(-2px);
+  color: #fff;
+}
+.btn-ghost {
+  background: #fff;
+  color: var(--c-ink);
+  box-shadow: var(--shadow-sm);
+}
+.btn-ghost:not(:disabled):hover {
+  transform: translateY(-2px);
+  color: var(--c-pink-dark);
+}
+.btn-sm {
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+}
+.btn-danger {
+  background: #fff;
+  color: var(--c-pink-dark);
+  box-shadow: var(--shadow-sm);
+}
+.btn-danger:not(:disabled):hover {
+  background: var(--c-pink);
+  color: #fff;
+}
+
+/* ---- Cards ------------------------------------------------------------ */
+.card {
+  background: var(--c-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--c-line);
+  padding: 1.5rem;
+}
+.card-lift {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ---- Forms ------------------------------------------------------------ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+.field label {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--c-ink-soft);
+}
+.field input,
+.field textarea,
+.field select {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  padding: 0.7rem 0.9rem;
+  border: 2px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  transition: border-color 0.15s ease;
+  color: var(--c-ink);
+}
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--c-pink);
+}
+
+/* ---- Pills / badges --------------------------------------------------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 204, 41, 0.25);
+  color: #9a6b00;
+}
+.pill-green {
+  background: rgba(0, 177, 106, 0.16);
+  color: var(--c-green-deep);
+}
+.pill-pink {
+  background: rgba(255, 46, 99, 0.14);
+  color: var(--c-pink-dark);
+}
+.pill-full {
+  background: rgba(36, 23, 51, 0.1);
+  color: var(--c-ink-soft);
+}
+
+/* ---- Alerts ----------------------------------------------------------- */
+.alert {
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+.alert-error {
+  background: rgba(255, 46, 99, 0.1);
+  color: var(--c-pink-dark);
+  border: 1px solid rgba(255, 46, 99, 0.3);
+}
+.alert-success {
+  background: rgba(0, 177, 106, 0.12);
+  color: var(--c-green-deep);
+  border: 1px solid rgba(0, 177, 106, 0.3);
+}
+
+/* ---- Helpers ---------------------------------------------------------- */
+.text-gradient {
+  background: var(--grad-samba);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.muted {
+  color: var(--c-ink-soft);
+}
+.center {
+  text-align: center;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+.grid {
+  display: grid;
+  gap: 1.25rem;
+}
+.spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 4px solid rgba(255, 46, 99, 0.25);
+  border-top-color: var(--c-pink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 2rem auto;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

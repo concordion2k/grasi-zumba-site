@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and adjust. (terraform.tfvars is git-ignored.)
+
+aws_region  = "us-east-1"
+environment = "prod"
+
+# Emails that should automatically become admins (e.g. Grasi's email).
+admin_bootstrap_emails = ["grasi@example.com"]
+
+# Set once you have a custom domain (otherwise leave the default — same-origin makes CORS moot).
+# frontend_origin = "https://www.grasizumba.com"
+
+tags = {
+  Owner = "grasi"
+}

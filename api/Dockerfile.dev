@@ -1,0 +1,20 @@
+# Dev-only image for the API (hot reload via tsx). Production deploys go through esbuild + Lambda,
+# not this image. Built from the repo root so workspace manifests resolve.
+FROM node:20-bookworm-slim
+WORKDIR /app
+
+# Install deps using the workspace manifests (good layer caching).
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY api/package.json ./api/
+COPY frontend/package.json ./frontend/
+RUN npm ci
+
+# Build shared types (the API imports @grasi/shared from its dist).
+COPY shared ./shared
+RUN npm run build:shared
+
+COPY api ./api
+
+EXPOSE 8787
+CMD ["npm", "run", "dev:api"]
