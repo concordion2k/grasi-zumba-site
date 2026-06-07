@@ -16,14 +16,7 @@ terraform {
     }
   }
 
-  # Remote state. Bootstrap the bucket + lock table once (see terraform/README.md), then run:
-  #   terraform init -backend-config=backend.hcl
-  #
-  # backend "s3" {
-  #   bucket         = "grasi-zumba-tfstate"
-  #   key            = "infra/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   dynamodb_table = "grasi-zumba-tflock"
-  #   encrypt        = true
-  # }
+  # Remote state lives in the S3 bucket + lock table created by terraform/bootstrap.
+  # Config is supplied via backend.hcl: `terraform init -backend-config=backend.hcl`.
+  backend "s3" {}
 }

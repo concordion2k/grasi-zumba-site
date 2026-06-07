@@ -23,12 +23,12 @@ api/lambda.zip
 *.key
 
 # Terraform
-terraform/.terraform/
-terraform/.terraform.lock.hcl
+**/.terraform/
 *.tfstate
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+!terraform/prod.auto.tfvars
 crash.log
 crash.*.log
 override.tf
