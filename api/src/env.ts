@@ -29,6 +29,13 @@ export const env = {
     .filter(Boolean),
   frontendOrigin: optional('FRONTEND_ORIGIN', 'http://localhost:5173'),
   cookieSecure: optional('COOKIE_SECURE', 'true') === 'true',
+
+  // Email/notifications.
+  /** 'ses' actually sends via SES; 'log' just prints (default for local dev). */
+  emailMode: optional('EMAIL_MODE', 'log'),
+  emailFrom: optional('EMAIL_FROM', 'Zumba by Grasiele <grasi@zumbabygrasiele.com>'),
+  /** When set, domain events are published to SQS; when unset (local), they run inline. */
+  emailQueueUrl: process.env.EMAIL_QUEUE_URL || undefined,
 };
 
 export type Env = typeof env;

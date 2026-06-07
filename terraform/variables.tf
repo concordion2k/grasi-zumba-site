@@ -32,6 +32,12 @@ variable "domain_name" {
   EOT
 }
 
+variable "email_from" {
+  type        = string
+  default     = "Zumba by Grasiele <grasi@zumbabygrasiele.com>"
+  description = "From header for outbound email (must be on the SES-verified domain)."
+}
+
 variable "frontend_origin" {
   type        = string
   default     = "https://localhost"

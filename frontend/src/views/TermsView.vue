@@ -4,8 +4,8 @@
 // the business-specific bits to confirm (legal name, jurisdiction, contact).
 // This is a starting template, not legal advice — have a professional review it.
 // ---------------------------------------------------------------------------
-const businessName = 'Grasi Zumba';
-const contactEmail = 'hello@grasizumba.com'; // [PLACEHOLDER] set your real contact email
+const businessName = 'Zumba by Grasiele';
+const contactEmail = 'grasi@zumbabygrasiele.com'; // [PLACEHOLDER] set your real contact email
 const governingLaw = '[your state / country]'; // [PLACEHOLDER] e.g. "the State of Florida, USA"
 const cancelWindow = '2 hours'; // [PLACEHOLDER] cancellation cut-off before class start
 const lastUpdated = 'June 7, 2026';

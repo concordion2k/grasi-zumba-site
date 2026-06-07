@@ -6,8 +6,8 @@
 // ---------------------------------------------------------------------------
 import { RouterLink } from 'vue-router';
 
-const businessName = 'Grasi Zumba';
-const contactEmail = 'hello@grasizumba.com'; // [PLACEHOLDER] set your real contact email
+const businessName = 'Zumba by Grasiele';
+const contactEmail = 'grasi@zumbabygrasiele.com'; // [PLACEHOLDER] set your real contact email
 const hostingRegion = 'the United States (AWS, us-east-1)'; // [PLACEHOLDER] match your AWS region
 const lastUpdated = 'June 7, 2026';
 

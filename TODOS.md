@@ -27,9 +27,9 @@ deliverability).
 Both legal pages are **boilerplate, not legal advice** — have a professional review them.
 
 - [ ] **Get Terms & Privacy reviewed by a lawyer** (esp. liability release + GDPR/CCPA wording).
-- [ ] `contactEmail` — real address (currently `hello@grasizumba.com` placeholder) in
+- [x] `contactEmail` — real address (currently `hello@grasizumba.com` placeholder) in
       [`TermsView.vue`](frontend/src/views/TermsView.vue) **and**
-      [`PrivacyView.vue`](frontend/src/views/PrivacyView.vue).
+      [`PrivacyView.vue`](frontend/src/views/PrivacyView.vue). - updated to `grasi@zumbabygrasiele.com`
 - [ ] `governingLaw` — set jurisdiction (currently `[your state / country]`) in `TermsView.vue`.
 - [ ] `cancelWindow` — confirm cancellation cut-off (currently `2 hours`) in `TermsView.vue`.
 - [ ] `hostingRegion` — confirm (currently "United States (AWS, us-east-1)") in `PrivacyView.vue`.

@@ -15,6 +15,7 @@ import { setSessionCookie, clearSessionCookie, SESSION_COOKIE } from '../lib/coo
 import { unauthorized } from '../lib/errors.js';
 import { env } from '../env.js';
 import { currentUser } from '../middleware/auth.js';
+import { publishSafe } from '../notifications/events.js';
 
 export const authRoutes = new Hono<AppEnv>();
 
@@ -34,6 +35,7 @@ authRoutes.post('/register', async (c) => {
   });
   const token = await createSession(user.userId);
   setSessionCookie(c, token);
+  publishSafe({ type: 'user.registered', user: { email: user.email, name: user.name } });
   return c.json({ user: await toPublicUser(user) }, 201);
 });
 

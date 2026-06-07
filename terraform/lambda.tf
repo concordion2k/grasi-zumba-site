@@ -31,6 +31,7 @@ resource "aws_lambda_function" "api" {
       ADMIN_BOOTSTRAP_EMAILS = join(",", var.admin_bootstrap_emails)
       FRONTEND_ORIGIN        = var.frontend_origin
       COOKIE_SECURE          = "true"
+      EMAIL_QUEUE_URL        = aws_sqs_queue.email.url
       NODE_OPTIONS           = "--enable-source-maps"
     }
   }
@@ -39,4 +40,47 @@ resource "aws_lambda_function" "api" {
     aws_iam_role_policy_attachment.lambda_basic,
     aws_cloudwatch_log_group.api,
   ]
+}
+
+# --- Mailer worker (SQS-triggered) — same deployment package, different handler ---
+
+resource "aws_cloudwatch_log_group" "worker" {
+  name              = "/aws/lambda/${local.name_prefix}-mailer"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_lambda_function" "worker" {
+  function_name = "${local.name_prefix}-mailer"
+  role          = aws_iam_role.worker.arn
+  runtime       = "nodejs20.x"
+  handler       = "worker.handler"
+  architectures = ["arm64"]
+  memory_size   = 256
+  timeout       = 60
+
+  filename         = data.archive_file.api.output_path
+  source_code_hash = data.archive_file.api.output_base64sha256
+
+  environment {
+    variables = {
+      TABLE_NAME      = aws_dynamodb_table.main.name
+      EMAIL_FROM      = var.email_from
+      EMAIL_MODE      = "ses"
+      FRONTEND_ORIGIN = var.frontend_origin
+      SESSION_SECRET  = random_password.session_secret.result
+      NODE_OPTIONS    = "--enable-source-maps"
+    }
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.worker_basic,
+    aws_cloudwatch_log_group.worker,
+  ]
+}
+
+resource "aws_lambda_event_source_mapping" "worker_sqs" {
+  event_source_arn        = aws_sqs_queue.email.arn
+  function_name           = aws_lambda_function.worker.arn
+  batch_size              = 5
+  function_response_types = ["ReportBatchItemFailures"]
 }
