@@ -1,8 +1,8 @@
 name: CI
 
+# Pull-request gate. On pushes to main, the same checks run as the `verify` job in deploy.yml
+# (which blocks the deploy), so we don't duplicate them here.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 

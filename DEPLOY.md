@@ -57,8 +57,13 @@ S3 + CloudFront, etc.), uploads the SPA, and invalidates the CDN. First run take
 
 ## How ongoing deploys work
 
-Every push to `main` re-runs the pipeline: Terraform reconciles infra and the Lambda code, and the
-SPA is re-synced. Infra changes go through the same `terraform apply`.
+Every push to `main` runs the **Deploy** workflow, which has two jobs:
+
+1. **verify** — lint, format check, typecheck, tests, build.
+2. **deploy** — `needs: verify`, so it only runs if verify passes; then `terraform apply` +
+   sync SPA + invalidate CloudFront.
+
+So a failing check **blocks** the deploy. Pull requests run the same checks via `ci.yml`.
 
 ## Configuration reference
 

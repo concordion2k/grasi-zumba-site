@@ -39,7 +39,7 @@ const pricingTiers = [
       <div class="container hero-inner">
         <div class="hero-copy">
           <span class="kicker">💃🏽 Dance. Sweat. Smile. Repeat.</span>
-          <h1>Feel the <span class="text-gradient">rhythm of Rio</span> in every class</h1>
+          <h1>Feel the <span class="text-gradient">rhythm of Rio</span> 🇧🇷 in every class</h1>
           <p class="lede">
             Join Grasi for an unforgettable Zumba experience — Brazilian beats, big smiles, and a
             workout that never feels like one. Vem com a gente!
