@@ -269,6 +269,36 @@ data "aws_iam_policy_document" "deploy_perms" {
     resources = ["*"]
   }
 
+  # SES domain identity + DKIM (email sending).
+  statement {
+    sid     = "AppSes"
+    actions = ["ses:*"]
+    resources = [
+      "arn:aws:ses:${local.region}:${local.acct}:identity/*",
+      "arn:aws:ses:${local.region}:${local.acct}:configuration-set/*",
+    ]
+  }
+
+  # App SQS queues (email event queue + DLQ).
+  statement {
+    sid       = "AppSqs"
+    actions   = ["sqs:*"]
+    resources = ["arn:aws:sqs:${local.region}:${local.acct}:${local.app_prefix}-*"]
+  }
+
+  # Lambda event-source mappings (SQS → mailer). These actions have no resource-level support.
+  statement {
+    sid = "LambdaEventSourceMappings"
+    actions = [
+      "lambda:CreateEventSourceMapping",
+      "lambda:GetEventSourceMapping",
+      "lambda:UpdateEventSourceMapping",
+      "lambda:DeleteEventSourceMapping",
+      "lambda:ListEventSourceMappings",
+    ]
+    resources = ["*"]
+  }
+
   statement {
     sid       = "StsIdentity"
     actions   = ["sts:GetCallerIdentity"]
