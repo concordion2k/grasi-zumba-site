@@ -12,6 +12,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Bind 0.0.0.0 so the dev server is reachable when running inside a container.
+    host: true,
     proxy: {
       // Proxy API calls to the local API server so the browser sees a single origin.
       '/api': {

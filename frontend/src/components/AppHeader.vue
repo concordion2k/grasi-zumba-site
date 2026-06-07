@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
 const router = useRouter();
 const menuOpen = ref(false);
+
+const initials = computed(() =>
+  (auth.user?.name ?? '?')
+    .split(' ')
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase(),
+);
 
 async function handleLogout() {
   await auth.logout();
@@ -18,7 +27,7 @@ async function handleLogout() {
   <header class="site-header">
     <div class="container bar">
       <RouterLink to="/" class="brand" @click="menuOpen = false">
-        <span class="brand-mark">💃</span>
+        <span class="brand-mark">💃🏽</span>
         <span class="brand-text">Grasi<span class="brand-accent">Zumba</span></span>
       </RouterLink>
 
@@ -29,9 +38,19 @@ async function handleLogout() {
       <nav class="nav" :class="{ open: menuOpen }" @click="menuOpen = false">
         <RouterLink to="/" class="nav-link">Home</RouterLink>
         <RouterLink to="/schedule" class="nav-link">Schedule</RouterLink>
+        <RouterLink to="/pricing" class="nav-link">Pricing</RouterLink>
         <template v-if="auth.isAuthenticated">
-          <RouterLink to="/dashboard" class="nav-link">My Classes</RouterLink>
           <RouterLink v-if="auth.isAdmin" to="/admin" class="nav-link">Admin</RouterLink>
+          <RouterLink to="/dashboard" class="nav-link account-link">
+            <img
+              v-if="auth.user?.profilePictureUrl"
+              :src="auth.user.profilePictureUrl"
+              alt=""
+              class="nav-avatar"
+            />
+            <span v-else class="nav-avatar nav-avatar-fallback">{{ initials }}</span>
+            <span>My Account</span>
+          </RouterLink>
           <button class="btn btn-ghost btn-sm" @click.stop="handleLogout">Log out</button>
         </template>
         <template v-else>
@@ -108,6 +127,29 @@ async function handleLogout() {
   height: 3px;
   border-radius: 3px;
   background: var(--grad-samba);
+}
+.account-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.nav-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid #fff;
+  box-shadow: var(--shadow-sm);
+}
+.nav-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--grad-samba);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
 }
 .burger {
   display: none;

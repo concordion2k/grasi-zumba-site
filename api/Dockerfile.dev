@@ -1,4 +1,4 @@
-# Dev-only image for the API (hot reload via tsx). Production deploys go through esbuild + Lambda,
+# Dev-only image for the API (hot reload via esbuild). Production deploys go through esbuild + Lambda,
 # not this image. Built from the repo root so workspace manifests resolve.
 FROM node:20-bookworm-slim
 WORKDIR /app
@@ -9,6 +9,9 @@ COPY shared/package.json ./shared/
 COPY api/package.json ./api/
 COPY frontend/package.json ./frontend/
 RUN npm ci
+
+# Shared workspace tsconfig extends the root base config, so it must be present to build.
+COPY tsconfig.base.json ./
 
 # Build shared types (the API imports @grasi/shared from its dist).
 COPY shared ./shared

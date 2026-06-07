@@ -21,7 +21,7 @@
     "dev:api": "npm run dev --workspace api",
     "dev:frontend": "npm run dev --workspace frontend",
     "up": "docker compose up -d --wait",
-    "up:all": "docker compose --profile apps up -d --wait",
+    "up:all": "docker compose --profile apps up -d --build --wait",
     "down": "docker compose down",
     "reset": "docker compose down -v",
     "logs": "docker compose logs -f",

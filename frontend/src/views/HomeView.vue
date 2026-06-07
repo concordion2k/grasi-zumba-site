@@ -24,6 +24,12 @@ const highlights = [
   { num: 'Rio', label: 'Authentic Brazilian energy' },
   { num: 'All levels', label: 'No experience needed' },
 ];
+
+const pricingTiers = [
+  { name: 'Drop-in', price: '$15', unit: '/ class', note: 'Pay as you go' },
+  { name: 'Class packs', price: 'from $12', unit: '/ class', note: '5, 10 or 20 classes' },
+  { name: 'Monthly', price: '$99', unit: '/ month', note: 'Unlimited classes' },
+];
 </script>
 
 <template>
@@ -32,7 +38,7 @@ const highlights = [
     <section class="hero">
       <div class="container hero-inner">
         <div class="hero-copy">
-          <span class="kicker">💃 Dance. Sweat. Smile. Repeat.</span>
+          <span class="kicker">💃🏽 Dance. Sweat. Smile. Repeat.</span>
           <h1>Feel the <span class="text-gradient">rhythm of Rio</span> in every class</h1>
           <p class="lede">
             Join Grasi for an unforgettable Zumba experience — Brazilian beats, big smiles, and a
@@ -52,13 +58,33 @@ const highlights = [
         <div class="hero-art" aria-hidden="true">
           <div class="blob blob-1"></div>
           <div class="blob blob-2"></div>
-          <div class="disco">💃</div>
+          <div class="disco">💃🏽</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing teaser -->
+    <section class="section pricing-teaser">
+      <div class="container">
+        <h2 class="center">Pricing that fits your <span class="text-gradient">rhythm</span></h2>
+        <p class="center muted offer-sub">Drop in, save with a pack, or go all-in unlimited.</p>
+        <div class="grid teaser-grid">
+          <div v-for="t in pricingTiers" :key="t.name" class="card card-lift teaser">
+            <h3>{{ t.name }}</h3>
+            <p class="teaser-price">
+              {{ t.price }} <span class="muted">{{ t.unit }}</span>
+            </p>
+            <p class="muted teaser-note">{{ t.note }}</p>
+          </div>
+        </div>
+        <div class="center teaser-cta">
+          <RouterLink to="/pricing" class="btn btn-primary">See full pricing →</RouterLink>
         </div>
       </div>
     </section>
 
     <!-- Services -->
-    <section class="section">
+    <section class="section services-section">
       <div class="container">
         <h2 class="center">What we <span class="text-gradient">offer</span></h2>
         <p class="center muted offer-sub">Pick your beat — there's a class for everyone.</p>
@@ -84,10 +110,15 @@ const highlights = [
 </template>
 
 <style scoped>
+/* Tighter vertical rhythm on the home page (overrides the global .section padding, scoped here). */
+.section {
+  padding: clamp(1.75rem, 3.5vw, 3rem) 0;
+}
+
 .hero {
   position: relative;
   overflow: hidden;
-  padding: clamp(2.5rem, 7vw, 5.5rem) 0;
+  padding: clamp(2rem, 4.5vw, 3.5rem) 0;
 }
 .hero-inner {
   display: grid;
@@ -121,7 +152,7 @@ const highlights = [
   display: flex;
   gap: 2rem;
   flex-wrap: wrap;
-  margin-top: 1.5rem;
+  margin-top: 1.25rem;
 }
 .highlight {
   display: flex;
@@ -134,7 +165,7 @@ const highlights = [
 }
 .hero-art {
   position: relative;
-  height: 340px;
+  height: 280px;
 }
 .blob {
   position: absolute;
@@ -187,7 +218,7 @@ const highlights = [
 }
 .offer-sub {
   margin-top: -0.4rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 .services {
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -200,6 +231,44 @@ const highlights = [
   display: block;
   margin-bottom: 0.5rem;
 }
+/* Pricing teaser */
+.pricing-teaser .offer-sub {
+  margin-top: -0.4rem;
+  margin-bottom: 1.5rem;
+}
+.teaser-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: 1.5rem;
+}
+/* Subtle tint separates the two stacked sections without needing large gaps. */
+.services-section {
+  background: linear-gradient(180deg, rgba(255, 204, 41, 0.08), rgba(0, 194, 168, 0.06));
+  border-radius: var(--radius);
+}
+.teaser {
+  text-align: center;
+}
+.teaser h3 {
+  margin: 0 0 0.4rem;
+}
+.teaser-price {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 2rem;
+  margin: 0;
+  color: var(--c-ink);
+}
+.teaser-price .muted {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.teaser-note {
+  margin: 0.25rem 0 0;
+}
+.teaser-cta {
+  margin-top: 0.5rem;
+}
+
 .cta-band {
   background: var(--grad-night);
   color: #fff;

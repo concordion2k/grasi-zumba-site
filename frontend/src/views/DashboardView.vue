@@ -7,6 +7,7 @@ import { ApiRequestError } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import ClassCard from '@/components/ClassCard.vue';
 import { isPast } from '@/utils/format';
+import { resizeImageToLimit } from '@/utils/image';
 
 const auth = useAuthStore();
 const bookings = ref<BookingWithClass[]>([]);
@@ -81,18 +82,26 @@ async function onAvatarChange(e: Event) {
   notice.value = '';
   if (!ALLOWED_IMAGE_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_TYPES)[number])) {
     error.value = 'Please choose a JPG, PNG, or WebP image.';
-    return;
-  }
-  if (file.size > PROFILE_PICTURE_MAX_BYTES) {
-    error.value = 'That image is too big (max 5 MB).';
+    if (fileInput.value) fileInput.value.value = '';
     return;
   }
   uploadingAvatar.value = true;
   try {
-    await auth.refreshAvatar(file);
+    // Downscale/compress in the browser so large phone photos fit the limit instead of being rejected.
+    let upload = file;
+    if (file.size > PROFILE_PICTURE_MAX_BYTES) {
+      notice.value = 'Optimizing your photo…';
+      upload = await resizeImageToLimit(file, {
+        maxBytes: PROFILE_PICTURE_MAX_BYTES,
+        maxDim: 1024,
+      });
+    }
+    await auth.refreshAvatar(upload);
     notice.value = 'Looking great! 📸';
   } catch (err) {
-    error.value = err instanceof ApiRequestError ? err.message : 'Upload failed.';
+    error.value =
+      err instanceof ApiRequestError || err instanceof Error ? err.message : 'Upload failed.';
+    notice.value = '';
   } finally {
     uploadingAvatar.value = false;
     if (fileInput.value) fileInput.value.value = '';

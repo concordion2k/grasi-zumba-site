@@ -7,6 +7,14 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: () => import('@/views/HomeView.vue') },
     { path: '/schedule', name: 'schedule', component: () => import('@/views/ScheduleView.vue') },
+    { path: '/pricing', name: 'pricing', component: () => import('@/views/PricingView.vue') },
+    {
+      path: '/payment-coming-soon',
+      name: 'payment-coming-soon',
+      component: () => import('@/views/PaymentComingSoonView.vue'),
+    },
+    { path: '/terms', name: 'terms', component: () => import('@/views/TermsView.vue') },
+    { path: '/privacy', name: 'privacy', component: () => import('@/views/PrivacyView.vue') },
     {
       path: '/login',
       name: 'login',

@@ -231,8 +231,10 @@ onMounted(() => {
                 </div>
               </div>
               <div class="cust-counts">
-                <span class="pill pill-pink">{{ c.bookingCount }} 📅</span>
-                <span class="pill">{{ c.noteCount }} 📝</span>
+                <span class="pill pill-pink stat" :title="`${c.bookingCount} bookings`">
+                  📅 {{ c.bookingCount }}
+                </span>
+                <span class="pill stat" :title="`${c.noteCount} notes`">📝 {{ c.noteCount }}</span>
               </div>
             </li>
           </ul>
@@ -323,19 +325,37 @@ onMounted(() => {
   margin: 1.5rem 0;
 }
 .tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  line-height: 1;
+  min-height: 44px;
   font-family: var(--font-display);
   font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--c-ink);
   background: #fff;
   border: 2px solid var(--c-line);
-  padding: 0.55rem 1.1rem;
+  padding: 0 1.15rem;
   border-radius: 999px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+.tabs button:hover:not(.active) {
+  border-color: var(--c-pink);
+  color: var(--c-pink-dark);
+  transform: translateY(-1px);
 }
 .tabs button.active {
   background: var(--grad-samba);
   color: #fff;
   border-color: transparent;
+  box-shadow: var(--shadow-sm);
 }
 .form-card {
   max-width: 640px;
@@ -375,25 +395,48 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  min-width: 0; /* allow the email to truncate instead of overflowing */
+}
+.cust-mini > div {
+  min-width: 0;
+}
+.cust-mini strong {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cust-mini .small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .mini-avatar {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
   border-radius: 50%;
   object-fit: cover;
   display: grid;
   place-items: center;
+  line-height: 1;
 }
 .mini-fallback {
   background: var(--grad-tropical);
   color: #fff;
   font-weight: 700;
+  font-size: 1.05rem;
   text-transform: uppercase;
 }
 .cust-counts {
   display: flex;
-  gap: 0.3rem;
+  gap: 0.4rem;
   flex-shrink: 0;
+}
+.cust-counts .stat {
+  min-width: 3.1rem;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
 }
 .block {
   display: block;

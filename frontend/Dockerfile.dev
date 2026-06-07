@@ -9,6 +9,9 @@ COPY api/package.json ./api/
 COPY frontend/package.json ./frontend/
 RUN npm ci
 
+# Shared workspace tsconfig extends the root base config, so it must be present to build.
+COPY tsconfig.base.json ./
+
 # Build shared types (the frontend imports @grasi/shared from its dist).
 COPY shared ./shared
 RUN npm run build:shared
@@ -16,5 +19,6 @@ RUN npm run build:shared
 COPY frontend ./frontend
 
 EXPOSE 5173
-# --host binds 0.0.0.0 so the port is reachable from outside the container.
-CMD ["npm", "run", "dev:frontend", "--", "--host"]
+# Binding 0.0.0.0 (so the port is reachable from the host) is handled by `server.host` in
+# vite.config.ts — more reliable than forwarding a --host flag through nested npm scripts.
+CMD ["npm", "run", "dev:frontend"]
