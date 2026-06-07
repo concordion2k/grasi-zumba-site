@@ -3,5 +3,9 @@
 aws_region  = "us-east-1"
 environment = "prod"
 
+# Custom domain (Route 53 hosted zone in this account). www is added automatically.
+domain_name     = "zumbabygrasiele.com"
+frontend_origin = "https://zumbabygrasiele.com"
+
 # Emails auto-promoted to admin on register/login. Register with this email in prod to become admin.
 admin_bootstrap_emails = ["concordion@mac.com"]

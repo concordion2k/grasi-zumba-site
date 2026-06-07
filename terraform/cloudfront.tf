@@ -48,6 +48,7 @@ resource "aws_cloudfront_distribution" "main" {
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
   comment             = "${local.name_prefix} site + api"
+  aliases             = local.domain_aliases
 
   # --- Origins ---
   origin {
@@ -100,10 +101,10 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
-    # For a custom domain, swap in:
-    # acm_certificate_arn      = aws_acm_certificate.cert.arn   (must be in us-east-1)
-    # ssl_support_method       = "sni-only"
-    # minimum_protocol_version = "TLSv1.2_2021"
+    # Default *.cloudfront.net cert until a custom domain is configured; then the validated ACM cert.
+    cloudfront_default_certificate = local.domain_enabled ? null : true
+    acm_certificate_arn            = one(aws_acm_certificate_validation.cf[*].certificate_arn)
+    ssl_support_method             = local.domain_enabled ? "sni-only" : null
+    minimum_protocol_version       = local.domain_enabled ? "TLSv1.2_2021" : "TLSv1"
   }
 }

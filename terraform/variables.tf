@@ -22,6 +22,16 @@ variable "admin_bootstrap_emails" {
   description = "Emails auto-promoted to admin on signup/login (e.g. Grasi's email). Lower-cased."
 }
 
+variable "domain_name" {
+  type        = string
+  default     = ""
+  description = <<-EOT
+    Custom apex domain (e.g. "zumbabygrasiele.com"). Empty = serve on the default *.cloudfront.net
+    URL. When set, www.<domain> is included automatically. DNS must be in a Route 53 hosted zone
+    in this account.
+  EOT
+}
+
 variable "frontend_origin" {
   type        = string
   default     = "https://localhost"

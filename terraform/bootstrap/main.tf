@@ -119,7 +119,9 @@ data "aws_iam_policy_document" "deploy_perms" {
       "cloudfront:*",
       "ssm:*",
       "logs:*",
-      "iam:*", # needed to create/manage the Lambda execution role, policies, and the OAC
+      "acm:*",     # custom-domain certificate
+      "route53:*", # custom-domain DNS records
+      "iam:*",     # needed to create/manage the Lambda execution role, policies, and the OAC
     ]
     resources = ["*"]
   }
