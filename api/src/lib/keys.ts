@@ -34,6 +34,7 @@ export const key = {
     sk: `NOTE#${noteId}`,
   }),
   session: (tokenHash: string) => ({ pk: `SESSION#${tokenHash}`, sk: 'SESSION' }),
+  siteSettings: () => ({ pk: 'SETTINGS', sk: 'SITE' }),
 };
 
 export const gsi1 = {

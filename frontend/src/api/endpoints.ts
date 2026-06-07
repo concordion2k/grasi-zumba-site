@@ -11,9 +11,12 @@ import type {
   RegisterRequest,
   LoginRequest,
   UpdateProfileRequest,
+  ChangePasswordRequest,
   CreateClassRequest,
   PresignUploadResponse,
   AllowedImageType,
+  SiteSettings,
+  UpdateSettingsRequest,
 } from '@grasi/shared';
 import { api, uploadToS3 } from './client.js';
 
@@ -34,6 +37,7 @@ export const classesApi = {
 export const meApi = {
   bookings: () => api.get<{ bookings: BookingWithClass[] }>('/me/bookings'),
   updateProfile: (body: UpdateProfileRequest) => api.patch<AuthResponse>('/me', body),
+  changePassword: (body: ChangePasswordRequest) => api.post<{ ok: true }>('/me/password', body),
   async uploadAvatar(file: File): Promise<PublicUser> {
     const { uploadUrl, key } = await api.post<PresignUploadResponse>('/me/avatar/presign', {
       contentType: file.type as AllowedImageType,
@@ -42,6 +46,12 @@ export const meApi = {
     const { user } = await api.post<AuthResponse>('/me/avatar/confirm', { key });
     return user;
   },
+};
+
+export const settingsApi = {
+  get: () => api.get<{ settings: SiteSettings }>('/settings'),
+  update: (body: UpdateSettingsRequest) =>
+    api.patch<{ settings: SiteSettings }>('/admin/settings', body),
 };
 
 export const adminApi = {

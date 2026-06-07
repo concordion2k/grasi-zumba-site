@@ -111,6 +111,11 @@ export interface UpdateProfileRequest {
   birthday?: string;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface CreateClassRequest {
   title: string;
   description: string;
@@ -138,6 +143,17 @@ export interface PresignUploadResponse {
 
 export interface ConfirmUploadRequest {
   key: string;
+}
+
+/** Site-wide settings controllable by admins (e.g. the announcement banner). */
+export interface SiteSettings {
+  bannerEnabled: boolean;
+  bannerMessage: string;
+}
+
+export interface UpdateSettingsRequest {
+  bannerEnabled?: boolean;
+  bannerMessage?: string;
 }
 
 /** Standard error envelope returned by the API. */

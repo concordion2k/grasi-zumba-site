@@ -10,6 +10,7 @@ import { classRoutes } from './routes/classes.js';
 import { bookingRoutes, myBookingsRoutes } from './routes/bookings.js';
 import { profileRoutes } from './routes/profile.js';
 import { adminRoutes } from './routes/admin.js';
+import { getSettings } from './domain/settings.js';
 
 export function createApp() {
   const app = new Hono<AppEnv>();
@@ -31,6 +32,7 @@ export function createApp() {
   app.onError(handleError);
 
   app.get('/api/health', (c) => c.json({ status: 'ok' }));
+  app.get('/api/settings', async (c) => c.json({ settings: await getSettings() }));
 
   app.route('/api/auth', authRoutes);
   app.route('/api/classes', classRoutes); // public list/get

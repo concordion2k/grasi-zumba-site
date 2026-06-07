@@ -334,6 +334,17 @@ const faqs = [
   margin-top: auto;
   width: 100%;
 }
+/* The default (non-popular) pack buttons are white-on-tint and blend in — give them a themed
+   outline so they read clearly as buttons, and fill on hover. */
+.pack .btn-ghost {
+  border: 2px solid var(--c-pink);
+  color: var(--c-pink-dark);
+  box-shadow: var(--shadow-md);
+}
+.pack .btn-ghost:not(:disabled):hover {
+  background: var(--c-pink);
+  color: #fff;
+}
 
 /* Monthly */
 .monthly {
@@ -401,9 +412,24 @@ const faqs = [
 
 /* CTA */
 .cta-band {
+  position: relative;
+  overflow: hidden;
   background: var(--grad-night);
   color: #fff;
   padding: clamp(2.5rem, 6vw, 4rem) 0;
+}
+/* Fade into the footer's solid tone so there's no seam between the two dark sections. */
+.cta-band::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 90px;
+  background: linear-gradient(180deg, rgba(42, 26, 71, 0), var(--c-night-solid));
+  pointer-events: none;
+}
+.cta-band .container {
+  position: relative;
+  z-index: 1;
 }
 .cta-band h2 {
   color: #fff;

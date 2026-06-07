@@ -1,14 +1,47 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import type { CrmCustomer, CrmNote, PublicUser, BookingWithClass } from '@grasi/shared';
+import { DEFAULT_BANNER_MESSAGE } from '@grasi/shared';
 import { adminApi } from '@/api/endpoints';
 import { ApiRequestError } from '@/api/client';
-import { formatRange, formatDate } from '@/utils/format';
+import { useSettingsStore } from '@/stores/settings';
+import { formatRange, formatDate, formatBirthday } from '@/utils/format';
 
-type Tab = 'schedule' | 'customers' | 'signups';
+type Tab = 'schedule' | 'customers' | 'signups' | 'settings';
 const tab = ref<Tab>('schedule');
 const error = ref('');
 const notice = ref('');
+
+// --- Site settings (announcement banner) ------------------------------------
+const settingsStore = useSettingsStore();
+const bannerEnabled = ref(false);
+const bannerMessage = ref(DEFAULT_BANNER_MESSAGE);
+const savingSettings = ref(false);
+
+async function loadSettings() {
+  if (!settingsStore.loaded) await settingsStore.fetch();
+  if (settingsStore.settings) {
+    bannerEnabled.value = settingsStore.settings.bannerEnabled;
+    bannerMessage.value = settingsStore.settings.bannerMessage;
+  }
+}
+
+async function saveSettings() {
+  savingSettings.value = true;
+  error.value = '';
+  notice.value = '';
+  try {
+    await settingsStore.update({
+      bannerEnabled: bannerEnabled.value,
+      bannerMessage: bannerMessage.value.trim(),
+    });
+    notice.value = 'Banner settings saved! 🎉';
+  } catch (e) {
+    error.value = e instanceof ApiRequestError ? e.message : 'Could not save settings.';
+  } finally {
+    savingSettings.value = false;
+  }
+}
 
 // --- Schedule a class -------------------------------------------------------
 const form = ref({
@@ -126,6 +159,7 @@ function switchTab(t: Tab) {
   notice.value = '';
   if (t === 'customers' && customers.value.length === 0) loadCustomers();
   if (t === 'signups' && signups.value.length === 0) loadSignups();
+  if (t === 'settings') loadSettings();
 }
 
 onMounted(() => {
@@ -148,6 +182,9 @@ onMounted(() => {
         </button>
         <button :class="{ active: tab === 'signups' }" @click="switchTab('signups')">
           🆕 New signups
+        </button>
+        <button :class="{ active: tab === 'settings' }" @click="switchTab('settings')">
+          ⚙️ Settings
         </button>
       </div>
 
@@ -249,7 +286,7 @@ onMounted(() => {
               <span v-if="selected.user.role === 'admin'" class="pill pill-green">Admin</span>
             </header>
             <p class="muted">
-              {{ selected.user.email }} · 🎂 {{ formatDate(selected.user.birthday) }} · joined
+              {{ selected.user.email }} · 🎂 {{ formatBirthday(selected.user.birthday) }} · joined
               {{ formatDate(selected.user.createdAt) }}
             </p>
 
@@ -291,7 +328,7 @@ onMounted(() => {
       </section>
 
       <!-- Signups -->
-      <section v-else class="card">
+      <section v-else-if="tab === 'signups'" class="card">
         <div v-if="loadingSignups" class="spinner"></div>
         <p v-else-if="signups.length === 0" class="muted">No signups yet.</p>
         <table v-else class="signup-table">
@@ -305,13 +342,37 @@ onMounted(() => {
           </thead>
           <tbody>
             <tr v-for="s in signups" :key="s.userId">
-              <td>{{ s.name }}</td>
-              <td>{{ s.email }}</td>
-              <td>{{ formatDate(s.birthday) }}</td>
-              <td>{{ formatDate(s.createdAt) }}</td>
+              <td data-label="Name">{{ s.name }}</td>
+              <td data-label="Email">{{ s.email }}</td>
+              <td data-label="Birthday">{{ formatBirthday(s.birthday) }}</td>
+              <td data-label="Joined">{{ formatDate(s.createdAt) }}</td>
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <!-- Settings -->
+      <section v-else class="card form-card">
+        <h2 class="settings-title">Announcement banner</h2>
+        <p class="muted">
+          Show a site-wide banner at the top of every page — handy while the business isn't live
+          yet.
+        </p>
+
+        <label class="toggle">
+          <input v-model="bannerEnabled" type="checkbox" />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-label">{{ bannerEnabled ? 'Banner is ON' : 'Banner is OFF' }}</span>
+        </label>
+
+        <div class="field">
+          <label for="bannerMsg">Banner message</label>
+          <textarea id="bannerMsg" v-model="bannerMessage" rows="3" maxlength="300"></textarea>
+        </div>
+
+        <button class="btn btn-primary" :disabled="savingSettings" @click="saveSettings">
+          {{ savingSettings ? 'Saving…' : 'Save banner settings' }}
+        </button>
       </section>
     </div>
   </div>
@@ -365,11 +426,69 @@ onMounted(() => {
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
+
+/* Settings: toggle switch */
+.settings-title {
+  margin-bottom: 0.25rem;
+}
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  margin: 1.1rem 0 1.25rem;
+  user-select: none;
+}
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-track {
+  position: relative;
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--c-line);
+  transition: background 0.18s ease;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.18s ease;
+}
+.toggle input:checked + .toggle-track {
+  background: var(--c-green);
+}
+.toggle input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(20px);
+}
+.toggle input:focus-visible + .toggle-track {
+  outline: 2px solid var(--c-pink);
+  outline-offset: 2px;
+}
+.toggle-label {
+  font-weight: 600;
+}
 .crm {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 360px minmax(0, 1fr);
   gap: 1.25rem;
   align-items: start;
+}
+/* Grid items default to min-width:auto; without this the row content (email/pills) can't shrink
+   and overflows the screen. */
+.crm-list,
+.crm-detail {
+  min-width: 0;
 }
 .cust-list {
   list-style: none;
@@ -514,7 +633,45 @@ onMounted(() => {
 @media (max-width: 820px) {
   .crm,
   .form-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Phone: the 4-column signups table overflows — stack each signup into a labeled card. */
+@media (max-width: 600px) {
+  .signup-table thead {
+    display: none;
+  }
+  .signup-table,
+  .signup-table tbody,
+  .signup-table tr,
+  .signup-table td {
+    display: block;
+    width: 100%;
+  }
+  .signup-table tr {
+    border: 1px solid var(--c-line);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+  .signup-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    text-align: right;
+    border-bottom: 1px solid var(--c-line);
+    padding: 0.45rem 0;
+  }
+  .signup-table tr td:last-child {
+    border-bottom: none;
+  }
+  .signup-table td::before {
+    content: attr(data-label);
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--c-ink);
+    text-align: left;
   }
 }
 </style>

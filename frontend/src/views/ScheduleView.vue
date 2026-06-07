@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
+import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { CalendarOptions, EventClickArg } from '@fullcalendar/core';
 import type { ZumbaClassWithBookingState } from '@grasi/shared';
@@ -13,11 +14,16 @@ import ClassCard from '@/components/ClassCard.vue';
 import { isPast } from '@/utils/format';
 
 const auth = useAuthStore();
+const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null);
 const classes = ref<ZumbaClassWithBookingState[]>([]);
 const loading = ref(true);
 const error = ref('');
 const busyId = ref<string | null>(null);
 const highlightId = ref<string | null>(null);
+
+// The month grid is unusable on a phone, so default to a tap-friendly list view there.
+const MOBILE_BP = 700;
+const isMobile = ref(typeof window !== 'undefined' && window.innerWidth < MOBILE_BP);
 
 const upcoming = computed(() =>
   classes.value
@@ -32,10 +38,15 @@ function colorFor(c: ZumbaClassWithBookingState): string {
 }
 
 const calendarOptions = computed<CalendarOptions>(() => ({
-  plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
-  initialView: 'dayGridMonth',
-  headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+  plugins: [dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin],
+  initialView: isMobile.value ? 'listMonth' : 'dayGridMonth',
+  headerToolbar: isMobile.value
+    ? { left: 'prev,next', center: 'title', right: 'today' }
+    : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listMonth' },
+  buttonText: { today: 'Today', month: 'Month', week: 'Week', list: 'List' },
   height: 'auto',
+  expandRows: true,
+  noEventsText: 'No classes in this range — check back soon!',
   events: classes.value.map((c) => ({
     id: c.classId,
     title: c.title,
@@ -51,6 +62,14 @@ const calendarOptions = computed<CalendarOptions>(() => ({
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   },
 }));
+
+// Switch between list (mobile) and month (desktop) when crossing the breakpoint (e.g. iPad rotation).
+function handleResize() {
+  const mobile = window.innerWidth < MOBILE_BP;
+  if (mobile === isMobile.value) return;
+  isMobile.value = mobile;
+  calendarRef.value?.getApi()?.changeView(mobile ? 'listMonth' : 'dayGridMonth');
+}
 
 async function load() {
   loading.value = true;
@@ -90,7 +109,11 @@ async function cancel(id: string) {
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  window.addEventListener('resize', handleResize);
+  load();
+});
+onUnmounted(() => window.removeEventListener('resize', handleResize));
 </script>
 
 <template>
@@ -111,7 +134,7 @@ onMounted(load);
 
       <template v-else>
         <div class="card calendar-wrap">
-          <FullCalendar :options="calendarOptions" />
+          <FullCalendar ref="calendarRef" :options="calendarOptions" />
           <div class="legend">
             <span><i class="dot" style="background: #ff2e63"></i> Open</span>
             <span><i class="dot" style="background: #00b16a"></i> Booked by you</span>
@@ -205,5 +228,46 @@ onMounted(load);
 }
 :deep(.fc .fc-toolbar-title) {
   font-family: var(--font-display);
+}
+:deep(.fc .fc-list-event-title) {
+  font-weight: 600;
+}
+:deep(.fc .fc-list-event:hover td) {
+  background: var(--c-paper);
+}
+/* Friendly, padded empty state in the bubbly display font. */
+:deep(.fc .fc-list-empty) {
+  background: transparent;
+}
+:deep(.fc .fc-list-empty-cushion) {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--c-ink-soft);
+  padding: 2.5rem 1.5rem;
+  margin: 0;
+}
+
+/* Phone: stack the toolbar so it isn't cramped, and tighten the calendar. */
+@media (max-width: 560px) {
+  .calendar-wrap {
+    padding: 1rem;
+  }
+  :deep(.fc .fc-toolbar.fc-header-toolbar) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+  :deep(.fc .fc-toolbar-chunk) {
+    display: flex;
+    justify-content: center;
+  }
+  :deep(.fc .fc-toolbar-title) {
+    font-size: 1.2rem;
+  }
+  :deep(.fc .fc-list-event-time) {
+    white-space: normal;
+  }
 }
 </style>

@@ -14,6 +14,14 @@ const emit = defineEmits<{ book: [id: string]; cancel: [id: string] }>();
 
 const past = computed(() => isPast(props.cls.startTime));
 const full = computed(() => props.cls.spotsRemaining <= 0 && !props.cls.bookedByMe);
+
+/** Availability ratio drives the spots-left color: green ≥66%, yellow 33–66%, red ≤33%. */
+const spotsPillClass = computed(() => {
+  const ratio = props.cls.capacity > 0 ? props.cls.spotsRemaining / props.cls.capacity : 0;
+  if (ratio >= 0.66) return 'pill-green';
+  if (ratio > 0.33) return 'pill-amber';
+  return 'pill-pink';
+});
 </script>
 
 <template>
@@ -22,7 +30,7 @@ const full = computed(() => props.cls.spotsRemaining <= 0 && !props.cls.bookedBy
       <h3>{{ cls.title }}</h3>
       <span v-if="cls.bookedByMe" class="pill pill-green">✓ Booked</span>
       <span v-else-if="full" class="pill pill-full">Full</span>
-      <span v-else class="pill pill-pink">{{ cls.spotsRemaining }} spots left</span>
+      <span v-else class="pill" :class="spotsPillClass">{{ cls.spotsRemaining }} spots left</span>
     </div>
 
     <p class="when">🗓️ {{ formatRange(cls.startTime, cls.endTime) }}</p>

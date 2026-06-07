@@ -107,6 +107,19 @@ export async function getCredentialByEmail(
   return { userId: res.Item.userId as string, passwordHash: res.Item.passwordHash as string };
 }
 
+/** Update the stored password hash for an email credential. */
+export async function updatePassword(email: string, passwordHash: string): Promise<void> {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: key.emailCredential(email),
+      UpdateExpression: 'SET passwordHash = :h',
+      ConditionExpression: 'attribute_exists(pk)',
+      ExpressionAttributeValues: { ':h': passwordHash },
+    }),
+  );
+}
+
 export async function updateUser(
   userId: string,
   patch: Partial<Pick<UserRecord, 'name' | 'birthday' | 'profilePictureKey' | 'role'>>,

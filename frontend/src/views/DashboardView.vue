@@ -23,6 +23,14 @@ const savingProfile = ref(false);
 const uploadingAvatar = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 
+// Change password
+const currentPassword = ref('');
+const newPassword = ref('');
+const confirmPassword = ref('');
+const changingPassword = ref(false);
+const pwError = ref('');
+const pwNotice = ref('');
+
 const upcoming = computed(() => bookings.value.filter((b) => !isPast(b.class.startTime)));
 const past = computed(() => bookings.value.filter((b) => isPast(b.class.startTime)));
 
@@ -68,6 +76,34 @@ async function saveProfile() {
     error.value = e instanceof ApiRequestError ? e.message : 'Could not save your profile.';
   } finally {
     savingProfile.value = false;
+  }
+}
+
+async function changePassword() {
+  pwError.value = '';
+  pwNotice.value = '';
+  if (newPassword.value.length < 10) {
+    pwError.value = 'New password must be at least 10 characters.';
+    return;
+  }
+  if (newPassword.value !== confirmPassword.value) {
+    pwError.value = 'New passwords do not match.';
+    return;
+  }
+  changingPassword.value = true;
+  try {
+    await meApi.changePassword({
+      currentPassword: currentPassword.value,
+      newPassword: newPassword.value,
+    });
+    pwNotice.value = 'Password changed! 🔒';
+    currentPassword.value = '';
+    newPassword.value = '';
+    confirmPassword.value = '';
+  } catch (e) {
+    pwError.value = e instanceof ApiRequestError ? e.message : 'Could not change your password.';
+  } finally {
+    changingPassword.value = false;
   }
 }
 
@@ -136,43 +172,89 @@ onMounted(load);
       <div v-if="notice" class="alert alert-success">{{ notice }}</div>
 
       <div class="dash-grid">
-        <!-- Profile -->
-        <aside class="card profile">
-          <div class="avatar-wrap">
-            <img
-              v-if="auth.user?.profilePictureUrl"
-              :src="auth.user.profilePictureUrl"
-              alt="Your profile picture"
-              class="avatar"
-            />
-            <div v-else class="avatar avatar-fallback">{{ initials }}</div>
-            <button class="avatar-edit" :disabled="uploadingAvatar" @click="pickAvatar">
-              {{ uploadingAvatar ? '…' : '📷' }}
-            </button>
-            <input
-              ref="fileInput"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              hidden
-              @change="onAvatarChange"
-            />
-          </div>
+        <div class="profile-col">
+          <!-- Profile -->
+          <aside class="card profile">
+            <div class="avatar-wrap">
+              <img
+                v-if="auth.user?.profilePictureUrl"
+                :src="auth.user.profilePictureUrl"
+                alt="Your profile picture"
+                class="avatar"
+              />
+              <div v-else class="avatar avatar-fallback">{{ initials }}</div>
+              <button class="avatar-edit" :disabled="uploadingAvatar" @click="pickAvatar">
+                {{ uploadingAvatar ? '…' : '📷' }}
+              </button>
+              <input
+                ref="fileInput"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                hidden
+                @change="onAvatarChange"
+              />
+            </div>
 
-          <form class="profile-form" @submit.prevent="saveProfile">
-            <div class="field">
-              <label for="pname">Name</label>
-              <input id="pname" v-model="name" type="text" required />
-            </div>
-            <div class="field">
-              <label for="pbday">Birthday</label>
-              <input id="pbday" v-model="birthday" type="date" required />
-            </div>
-            <p class="muted small">{{ auth.user?.email }}</p>
-            <button class="btn btn-tropical full" :disabled="savingProfile" type="submit">
-              {{ savingProfile ? 'Saving…' : 'Save profile' }}
-            </button>
-          </form>
-        </aside>
+            <form class="profile-form" @submit.prevent="saveProfile">
+              <div class="field">
+                <label for="pname">Name</label>
+                <input id="pname" v-model="name" type="text" required />
+              </div>
+              <div class="field">
+                <label for="pbday">Birthday</label>
+                <input id="pbday" v-model="birthday" type="date" required />
+              </div>
+              <p class="muted small">{{ auth.user?.email }}</p>
+              <button class="btn btn-tropical full" :disabled="savingProfile" type="submit">
+                {{ savingProfile ? 'Saving…' : 'Save profile' }}
+              </button>
+            </form>
+          </aside>
+
+          <!-- Change password -->
+          <section class="card pw-card">
+            <h3>Change password</h3>
+            <div v-if="pwError" class="alert alert-error">{{ pwError }}</div>
+            <div v-if="pwNotice" class="alert alert-success">{{ pwNotice }}</div>
+            <form @submit.prevent="changePassword">
+              <div class="field">
+                <label for="cpw">Current password</label>
+                <input
+                  id="cpw"
+                  v-model="currentPassword"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                />
+              </div>
+              <div class="field">
+                <label for="npw">New password</label>
+                <input
+                  id="npw"
+                  v-model="newPassword"
+                  type="password"
+                  autocomplete="new-password"
+                  minlength="10"
+                  required
+                />
+                <small class="muted">At least 10 characters.</small>
+              </div>
+              <div class="field">
+                <label for="npw2">Confirm new password</label>
+                <input
+                  id="npw2"
+                  v-model="confirmPassword"
+                  type="password"
+                  autocomplete="new-password"
+                  required
+                />
+              </div>
+              <button class="btn btn-ghost full" :disabled="changingPassword" type="submit">
+                {{ changingPassword ? 'Saving…' : 'Change password' }}
+              </button>
+            </form>
+          </section>
+        </div>
 
         <!-- Bookings -->
         <section class="bookings">
@@ -210,15 +292,25 @@ onMounted(load);
 <style scoped>
 .dash-grid {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 1.5rem;
   margin-top: 1.5rem;
   align-items: start;
 }
+.profile-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
 .profile {
   text-align: center;
-  position: sticky;
-  top: 90px;
+}
+.pw-card {
+  text-align: left;
+}
+.pw-card h3 {
+  margin: 0 0 0.75rem;
 }
 .avatar-wrap {
   position: relative;
@@ -274,10 +366,7 @@ onMounted(load);
 
 @media (max-width: 820px) {
   .dash-grid {
-    grid-template-columns: 1fr;
-  }
-  .profile {
-    position: static;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

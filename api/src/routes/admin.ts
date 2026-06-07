@@ -2,16 +2,25 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types.js';
 import type { CrmCustomer, BookingWithClass } from '@grasi/shared';
 import { requireAdmin, currentUser } from '../middleware/auth.js';
-import { createClassSchema, createNoteSchema } from '../schemas.js';
+import { createClassSchema, createNoteSchema, updateSettingsSchema } from '../schemas.js';
 import { listUsers, getUserById, toPublicUser } from '../domain/users.js';
 import { createClass, toZumbaClass, getClass } from '../domain/classes.js';
 import { countUserBookings, listUserBookings, listRoster } from '../domain/bookings.js';
 import { createNote, listNotes, countNotes, deleteNote } from '../domain/notes.js';
+import { updateSettings } from '../domain/settings.js';
 import { notFound } from '../lib/errors.js';
 
 /** Admin-only CRM + scheduling. Mounted under /admin. */
 export const adminRoutes = new Hono<AppEnv>();
 adminRoutes.use('*', requireAdmin);
+
+// --- Site settings ----------------------------------------------------------
+
+adminRoutes.patch('/settings', async (c) => {
+  const patch = updateSettingsSchema.parse(await c.req.json());
+  const settings = await updateSettings(patch);
+  return c.json({ settings });
+});
 
 // --- CRM: customers ---------------------------------------------------------
 

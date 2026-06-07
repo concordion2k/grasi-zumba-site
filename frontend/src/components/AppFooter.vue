@@ -7,7 +7,7 @@ const year = new Date().getFullYear();
   <footer class="site-footer">
     <div class="container foot">
       <div class="foot-brand">
-        <span class="logo">💃🏽 GrasiZumba</span>
+        <span class="logo">💃🏽 Zumba by Grasiele</span>
         <p class="muted small">Energia do Rio, na sua vizinhança. Vem dançar! 🇧🇷</p>
       </div>
       <nav class="foot-links" aria-label="Footer">
@@ -26,7 +26,7 @@ const year = new Date().getFullYear();
 <style scoped>
 .site-footer {
   margin-top: auto;
-  background: var(--grad-night);
+  background: var(--c-night-solid);
   color: #fff;
   padding: 2rem 0;
 }

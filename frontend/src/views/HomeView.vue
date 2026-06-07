@@ -28,7 +28,7 @@ const highlights = [
 const pricingTiers = [
   { name: 'Drop-in', price: '$15', unit: '/ class', note: 'Pay as you go' },
   { name: 'Class packs', price: 'from $12', unit: '/ class', note: '5, 10 or 20 classes' },
-  { name: 'Monthly', price: '$99', unit: '/ month', note: 'Unlimited classes' },
+  { name: 'Monthly', price: '$199', unit: '/ month', note: 'Unlimited classes' },
 ];
 </script>
 
@@ -147,6 +147,15 @@ const pricingTiers = [
 .hero-cta {
   margin: 1.5rem 0;
   flex-wrap: wrap;
+}
+/* Themed outline on the white "Create an account" button (matches pricing + header buttons). */
+.hero-cta .btn-ghost {
+  border: 2px solid var(--c-pink);
+  color: var(--c-pink-dark);
+}
+.hero-cta .btn-ghost:not(:disabled):hover {
+  background: var(--c-pink);
+  color: #fff;
 }
 .highlights {
   display: flex;
@@ -270,10 +279,25 @@ const pricingTiers = [
 }
 
 .cta-band {
+  position: relative;
+  overflow: hidden;
   background: var(--grad-night);
   color: #fff;
   padding: clamp(2.5rem, 6vw, 4rem) 0;
   text-align: center;
+}
+/* Fade the diagonal into the footer's solid tone so there's no seam between the two dark sections. */
+.cta-band::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 90px;
+  background: linear-gradient(180deg, rgba(42, 26, 71, 0), var(--c-night-solid));
+  pointer-events: none;
+}
+.cta-band .container {
+  position: relative;
+  z-index: 1;
 }
 .cta-band h2 {
   color: #fff;
@@ -285,16 +309,42 @@ const pricingTiers = [
   color: rgba(255, 255, 255, 0.85);
 }
 
-@media (max-width: 820px) {
+/* Small tablet / large phone: single column, art on top but shorter.
+   (iPad portrait ≥768 keeps the nicer side-by-side hero.) */
+@media (max-width: 760px) {
   .hero-inner {
     grid-template-columns: 1fr;
   }
   .hero-art {
-    height: 220px;
+    height: 200px;
     order: -1;
   }
   .disco {
-    font-size: 5rem;
+    font-size: 4.5rem;
+  }
+}
+
+/* Phone: the decorative blob art dominates the screen and pushes content down — drop it and
+   lead with the copy. Make the hero CTAs full-width for easy tapping. */
+@media (max-width: 640px) {
+  .hero {
+    padding-top: 1.25rem;
+  }
+  .hero-art {
+    display: none;
+  }
+  .hero-copy h1 {
+    font-size: clamp(2rem, 8vw, 2.6rem);
+  }
+  .hero-cta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hero-cta .btn {
+    width: 100%;
+  }
+  .highlights {
+    gap: 1.25rem 1.75rem;
   }
 }
 </style>

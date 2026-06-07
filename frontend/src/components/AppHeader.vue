@@ -28,7 +28,7 @@ async function handleLogout() {
     <div class="container bar">
       <RouterLink to="/" class="brand" @click="menuOpen = false">
         <span class="brand-mark">💃🏽</span>
-        <span class="brand-text">Grasi<span class="brand-accent">Zumba</span></span>
+        <span class="brand-text"><span class="brand-accent">Zumba</span> by Grasiele</span>
       </RouterLink>
 
       <button class="burger" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
@@ -127,6 +127,15 @@ async function handleLogout() {
   height: 3px;
   border-radius: 3px;
   background: var(--grad-samba);
+}
+/* Give the white "Log out" button a themed outline so it stands out (matches the pricing buttons). */
+.nav .btn-ghost {
+  border: 2px solid var(--c-pink);
+  color: var(--c-pink-dark);
+}
+.nav .btn-ghost:not(:disabled):hover {
+  background: var(--c-pink);
+  color: #fff;
 }
 .account-link {
   display: inline-flex;

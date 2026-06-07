@@ -54,7 +54,9 @@ services:
       - PORT=8787
     volumes:
       - ./api/src:/app/api/src
-      - ./shared/src:/app/shared/src
+      # Mount the whole shared package (src + built dist) so changes to @grasi/shared are picked up
+      # without rebuilding the image. Run `npm run build:shared` on the host after editing it.
+      - ./shared:/app/shared
     depends_on:
       localstack:
         condition: service_healthy
@@ -72,5 +74,7 @@ services:
       - ./frontend/src:/app/frontend/src
       - ./frontend/index.html:/app/frontend/index.html
       - ./frontend/public:/app/frontend/public
+      # Mount shared so @grasi/shared changes are live (see note on the api service).
+      - ./shared:/app/shared
     depends_on:
       - api

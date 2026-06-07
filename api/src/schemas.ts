@@ -29,6 +29,25 @@ export const updateProfileSchema = z
     message: 'Nothing to update',
   });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Enter your current password'),
+    newPassword: z.string().min(10, 'Use at least 10 characters').max(200),
+  })
+  .refine((v) => v.currentPassword !== v.newPassword, {
+    message: 'New password must be different from the current one',
+    path: ['newPassword'],
+  });
+
+export const updateSettingsSchema = z
+  .object({
+    bannerEnabled: z.boolean().optional(),
+    bannerMessage: z.string().trim().min(1).max(300).optional(),
+  })
+  .refine((v) => v.bannerEnabled !== undefined || v.bannerMessage !== undefined, {
+    message: 'Nothing to update',
+  });
+
 export const createClassSchema = z.object({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(2000).default(''),

@@ -57,6 +57,7 @@ Terraform zips `dist/` into the Lambda package — see [`../terraform`](../terra
 | DELETE | `/api/classes/:id/book`                  | user   |
 | GET    | `/api/me/bookings`                       | user   |
 | PATCH  | `/api/me`                                | user   |
+| POST   | `/api/me/password`                       | user   |
 | POST   | `/api/me/avatar/presign`                 | user   |
 | POST   | `/api/me/avatar/confirm`                 | user   |
 | GET    | `/api/admin/customers`                   | admin  |
