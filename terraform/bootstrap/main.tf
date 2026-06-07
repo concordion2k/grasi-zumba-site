@@ -183,6 +183,12 @@ data "aws_iam_policy_document" "deploy_perms" {
     actions   = ["ssm:*"]
     resources = ["arn:aws:ssm:${local.region}:${local.acct}:parameter/${local.app_prefix}/*"]
   }
+  # DescribeParameters has no resource-level support — must be "*" (read-only metadata).
+  statement {
+    sid       = "SsmDescribe"
+    actions   = ["ssm:DescribeParameters"]
+    resources = ["*"]
+  }
 
   # App CloudWatch log groups (mutations scoped; Describe needs "*").
   statement {
@@ -248,8 +254,13 @@ data "aws_iam_policy_document" "deploy_perms" {
 
   # Route 53: record changes limited to our hosted zone; lookups need "*".
   statement {
-    sid       = "Route53Zone"
-    actions   = ["route53:ChangeResourceRecordSets", "route53:ListResourceRecordSets", "route53:GetHostedZone"]
+    sid = "Route53Zone"
+    actions = [
+      "route53:ChangeResourceRecordSets",
+      "route53:ListResourceRecordSets",
+      "route53:GetHostedZone",
+      "route53:ListTagsForResource",
+    ]
     resources = ["arn:aws:route53:::hostedzone/${var.hosted_zone_id}"]
   }
   statement {
