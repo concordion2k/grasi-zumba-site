@@ -14,32 +14,9 @@ env:
   TF_WORKING_DIR: terraform
 
 jobs:
-  # Quality gate — the deploy job will not run unless all of these pass.
+  # Quality gate (shared with ci.yml) — the deploy job will not run unless this passes.
   verify:
-    name: Verify (lint, typecheck, test, build)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Build shared types
-        run: npm run build:shared
-      - name: Lint
-        run: npm run lint
-      - name: Format check
-        run: npm run format:check
-      - name: Type-check
-        run: npm run typecheck
-      - name: Test
-        run: npm test
-      - name: Build (api + frontend)
-        run: npm run build
+    uses: ./.github/workflows/checks.yml
 
   deploy:
     name: Deploy to AWS

@@ -1,0 +1,33 @@
+name: Checks
+
+# Reusable workflow: the single source of truth for our quality gate (lint, format, typecheck,
+# test, build). Called by ci.yml (on PRs) and by deploy.yml's verify job (on pushes to main).
+on:
+  workflow_call:
+
+jobs:
+  checks:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build shared types
+        run: npm run build:shared
+      - name: Lint
+        run: npm run lint
+      - name: Format check
+        run: npm run format:check
+      - name: Type-check
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build (api + frontend)
+        run: npm run build
