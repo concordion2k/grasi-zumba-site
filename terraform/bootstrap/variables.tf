@@ -30,3 +30,15 @@ variable "create_oidc_provider" {
   default     = true
   description = "Set to false if a GitHub Actions OIDC provider already exists in this account."
 }
+
+variable "app_env" {
+  type        = string
+  default     = "prod"
+  description = "Environment the deploy role is scoped to (resources are named <project>-<app_env>-*)."
+}
+
+variable "hosted_zone_id" {
+  type        = string
+  default     = "Z05954102JVBP13NIT97U"
+  description = "Route 53 hosted zone the deploy role may change records in (zumbabygrasiele.com)."
+}

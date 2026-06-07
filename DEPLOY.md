@@ -81,5 +81,6 @@ So a failing check **blocks** the deploy. Pull requests run the same checks via 
   (ACM cert in us-east-1 + CloudFront alias + DNS); see [terraform/cloudfront.tf](terraform/cloudfront.tf).
 - **DynamoDB has `prevent_destroy`** so customer data can't be wiped by an accidental destroy.
 - **Rollback:** revert the commit and push — the pipeline redeploys the previous version.
-- The deploy IAM role is broad-by-service for simplicity; tighten in
-  [terraform/bootstrap/main.tf](terraform/bootstrap/main.tf) later if desired.
+- The deploy IAM role is **least-privilege** — scoped to this app's resources, `PassRole` limited to
+  Lambda, can't modify itself or create arbitrary roles
+  ([terraform/bootstrap/main.tf](terraform/bootstrap/main.tf)).
