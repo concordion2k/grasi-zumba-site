@@ -1,9 +1,19 @@
 import { env } from '../env.js';
-import type { OutgoingEmail } from '../lib/email.js';
+import type { OutgoingEmail, EmailAttachment } from '../lib/email.js';
 import type { ClassSummary, FieldChange, EmailRecipient } from './events.js';
 import { formatClassTime } from '../lib/datetime.js';
+import { buildClassIcs } from '../lib/ics.js';
 
 const BRAND = 'Zumba by Grasiele';
+
+/** A calendar invite as a real file attachment (so it adds a one-time event, not a subscription). */
+function calendarAttachment(cls: ClassSummary): EmailAttachment {
+  return {
+    filename: 'class.ics',
+    content: buildClassIcs(cls),
+    contentType: 'text/calendar; charset=UTF-8; method=PUBLISH',
+  };
+}
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -123,13 +133,12 @@ export function waiverSignedEmail(
 export function bookingConfirmedEmail(to: EmailRecipient, cls: ClassSummary): OutgoingEmail {
   const site = env.frontendOrigin;
   const u = unsubUrl(to.unsubToken);
-  const calendarUrl = `${site}/api/classes/${cls.classId}/calendar.ics`;
   const subject = `You're booked: ${cls.title} 💃`;
   const text =
     `Hi ${to.name},\n\n` +
     `You're all set! Here are the details:\n\n` +
     `${classDetailsText(cls)}\n\n` +
-    `Add to your calendar: ${calendarUrl}\n\n` +
+    `📅 A calendar invite is attached — open it to add this class to your calendar.\n\n` +
     `See your classes: ${site}/dashboard\n\n` +
     `Vem dançar!\nGrasi\n\n` +
     `Unsubscribe: ${u}`;
@@ -137,14 +146,13 @@ export function bookingConfirmedEmail(to: EmailRecipient, cls: ClassSummary): Ou
     `You're booked! 🎉`,
     `<p style="line-height:1.6">Hi ${esc(to.name)}, you're all set — can't wait to dance with you!</p>
      ${classDetailsHtml(cls)}
-     <p style="margin:0 0 12px">
-       <a href="${calendarUrl}" style="color:#d81b54;font-weight:700">📅 Add to your calendar</a>
-     </p>
+     <p style="line-height:1.6;color:#5b4d6b;font-size:14px">📅 A calendar invite is attached to this
+     email — open it to add the class to your calendar.</p>
      <p>${button(`${site}/dashboard`, 'View your classes →')}</p>
      <p style="margin-top:16px">Vem dançar!<br/>Grasi</p>`,
     u,
   );
-  return { to: to.email, subject, text, html };
+  return { to: to.email, subject, text, html, attachments: [calendarAttachment(cls)] };
 }
 
 /** Announcement of a brand-new class to opted-in users. */
@@ -193,6 +201,7 @@ export function classChangedEmail(
     `A class you're booked into has been updated:\n\n` +
     `${changeLinesText}\n\n` +
     `Updated details:\n${classDetailsText(cls)}\n\n` +
+    `📅 An updated calendar invite is attached.\n\n` +
     `See your classes: ${site}/dashboard\n\n` +
     `Vem dançar!\nGrasi\n\n` +
     `Unsubscribe: ${u}`;
@@ -201,11 +210,13 @@ export function classChangedEmail(
     `<p style="line-height:1.6">Hi ${esc(to.name)}, a class you're booked into has changed:</p>
      <ul style="line-height:1.6;padding-left:18px;margin:0 0 12px">${changeLinesHtml}</ul>
      ${classDetailsHtml(cls)}
+     <p style="line-height:1.6;color:#5b4d6b;font-size:14px">📅 An updated calendar invite is
+     attached to this email.</p>
      <p>${button(`${site}/dashboard`, 'View your classes →')}</p>
      <p style="margin-top:16px">Vem dançar!<br/>Grasi</p>`,
     u,
   );
-  return { to: to.email, subject, text, html };
+  return { to: to.email, subject, text, html, attachments: [calendarAttachment(cls)] };
 }
 
 /** Notify a booked user that their class was canceled. */
