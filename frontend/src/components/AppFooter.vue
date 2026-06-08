@@ -13,6 +13,7 @@ const year = new Date().getFullYear();
       <nav class="foot-links" aria-label="Footer">
         <RouterLink to="/schedule">Schedule</RouterLink>
         <RouterLink to="/pricing">Pricing</RouterLink>
+        <RouterLink to="/contact">Contact</RouterLink>
         <RouterLink to="/terms">Terms &amp; Conditions</RouterLink>
         <RouterLink to="/privacy">Privacy Policy</RouterLink>
       </nav>

@@ -3,10 +3,9 @@ import { env } from '../env.js';
 import { handleEvent } from './handler.js';
 
 /** Domain events that result in email. Carry enough data that the worker rarely needs extra reads. */
-export type EmailEvent = {
-  type: 'user.registered';
-  user: { email: string; name: string };
-};
+export type EmailEvent =
+  | { type: 'user.registered'; user: { email: string; name: string } }
+  | { type: 'contact.inquiry'; name: string; email: string; message: string };
 
 let sqs: SQSClient | undefined;
 

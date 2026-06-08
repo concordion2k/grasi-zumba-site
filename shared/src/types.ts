@@ -116,6 +116,14 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+export interface ContactRequest {
+  name: string;
+  email: string;
+  message: string;
+  /** Honeypot — must be empty; real users never see this field. */
+  company?: string;
+}
+
 export interface CreateClassRequest {
   title: string;
   description: string;

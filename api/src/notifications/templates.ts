@@ -24,6 +24,29 @@ function button(href: string, label: string): string {
   return `<a href="${href}" style="display:inline-block;background:#ff2e63;color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;margin-top:8px">${label}</a>`;
 }
 
+/** Inquiry from the public contact form, delivered to the business inbox (reply-to the sender). */
+export function contactInquiryEmail(inquiry: {
+  name: string;
+  email: string;
+  message: string;
+}): OutgoingEmail {
+  const subject = `New inquiry from ${inquiry.name}`;
+  const text =
+    `New contact-form inquiry:\n\n` +
+    `Name:  ${inquiry.name}\n` +
+    `Email: ${inquiry.email}\n\n` +
+    `Message:\n${inquiry.message}\n`;
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = shell(
+    `New inquiry from ${esc(inquiry.name)}`,
+    `<p style="margin:0 0 6px"><strong>Email:</strong>
+       <a href="mailto:${esc(inquiry.email)}" style="color:#d81b54">${esc(inquiry.email)}</a></p>
+     <p style="white-space:pre-wrap;line-height:1.6;background:#fff8f3;border-radius:12px;padding:14px">${esc(inquiry.message)}</p>
+     <p style="color:#5b4d6b;font-size:14px">Reply directly to this email to respond to ${esc(inquiry.name)}.</p>`,
+  );
+  return { to: '', subject, text, html, replyTo: inquiry.email };
+}
+
 export function welcomeEmail(name: string): OutgoingEmail {
   const site = env.frontendOrigin;
   const subject = `Welcome to ${BRAND}! 💃`;

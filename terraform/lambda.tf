@@ -66,6 +66,7 @@ resource "aws_lambda_function" "worker" {
       TABLE_NAME      = aws_dynamodb_table.main.name
       EMAIL_FROM      = var.email_from
       EMAIL_MODE      = "ses"
+      CONTACT_TO      = var.contact_to
       FRONTEND_ORIGIN = var.frontend_origin
       SESSION_SECRET  = random_password.session_secret.result
       NODE_OPTIONS    = "--enable-source-maps"

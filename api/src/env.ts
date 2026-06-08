@@ -42,6 +42,8 @@ export const env = {
   /** 'ses' actually sends via SES; 'log' just prints (default for local dev). */
   emailMode: optional('EMAIL_MODE', 'log'),
   emailFrom: optional('EMAIL_FROM', 'Zumba by Grasiele <grasi@zumbabygrasiele.com>'),
+  /** Where contact-form inquiries are delivered. */
+  contactTo: optional('CONTACT_TO', 'grasi@zumbabygrasiele.com'),
   /** When set, domain events are published to SQS; when unset (local), they run inline. */
   emailQueueUrl: process.env.EMAIL_QUEUE_URL || undefined,
 };
