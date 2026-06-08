@@ -284,8 +284,8 @@ onMounted(load);
             <template v-if="waiver?.upToDate">
               <p class="muted small">
                 ✅ Signed by <strong>{{ waiver.fullName }}</strong>
-                <span v-if="waiver.signedAt"
-                  > on {{ new Date(waiver.signedAt).toLocaleDateString() }}</span
+                <span v-if="waiver.signedAt">
+                  on {{ new Date(waiver.signedAt).toLocaleDateString() }}</span
                 >.
               </p>
               <a
