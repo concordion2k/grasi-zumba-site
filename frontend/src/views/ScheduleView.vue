@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -17,6 +17,7 @@ import { isPast, formatRange } from '@/utils/format';
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null);
 const classes = ref<ZumbaClassWithBookingState[]>([]);
 const loading = ref(true);
@@ -105,34 +106,54 @@ function requestAction(id: string, action: 'book' | 'cancel') {
   if (cls) pending.value = { cls, action };
 }
 
-async function confirmPending() {
-  const p = pending.value;
-  if (!p) return;
-  busyId.value = p.cls.classId;
+/** Book a class. If the waiver isn't signed yet, send the user to sign it — carrying the class id
+ *  so the booking is completed automatically on return (instead of being silently dropped). */
+async function doBook(id: string) {
+  busyId.value = id;
   error.value = '';
   try {
-    if (p.action === 'book') await classesApi.book(p.cls.classId);
-    else await classesApi.cancel(p.cls.classId);
-    pending.value = null;
+    await classesApi.book(id);
     await load();
   } catch (e) {
-    const wasBook = p.action === 'book';
-    pending.value = null;
-    if (wasBook && isWaiverRequired(e)) {
-      // Send them to sign, then return to the schedule to finish booking.
-      router.push({ name: 'waiver', query: { redirect: '/schedule' } });
+    if (isWaiverRequired(e)) {
+      router.push({ name: 'waiver', query: { redirect: '/schedule', book: id } });
       return;
     }
-    error.value =
-      e instanceof ApiRequestError ? e.message : wasBook ? 'Booking failed.' : 'Could not cancel.';
+    error.value = e instanceof ApiRequestError ? e.message : 'Booking failed.';
   } finally {
     busyId.value = null;
   }
 }
 
-onMounted(() => {
+async function confirmPending() {
+  const p = pending.value;
+  if (!p) return;
+  pending.value = null;
+  if (p.action === 'book') {
+    await doBook(p.cls.classId);
+    return;
+  }
+  busyId.value = p.cls.classId;
+  error.value = '';
+  try {
+    await classesApi.cancel(p.cls.classId);
+    await load();
+  } catch (e) {
+    error.value = e instanceof ApiRequestError ? e.message : 'Could not cancel.';
+  } finally {
+    busyId.value = null;
+  }
+}
+
+onMounted(async () => {
   window.addEventListener('resize', handleResize);
-  load();
+  await load();
+  // Returning from the waiver with a pending booking → finish it now (waiver is signed).
+  const bookId = route.query.book;
+  if (typeof bookId === 'string' && auth.isAuthenticated) {
+    await router.replace({ query: {} }); // drop ?book= so a refresh won't re-book
+    await doBook(bookId);
+  }
 });
 onUnmounted(() => window.removeEventListener('resize', handleResize));
 </script>
