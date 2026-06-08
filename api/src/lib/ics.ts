@@ -1,4 +1,12 @@
-import type { ClassRecord } from '../domain/classes.js';
+/** The minimal class shape needed to build an invite (satisfied by ClassRecord and ClassSummary). */
+export interface IcsEvent {
+  classId: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  description?: string;
+}
 
 /** Escape a value for an iCalendar text field (RFC 5545). */
 function esc(s: string): string {
@@ -18,7 +26,7 @@ function icsDate(iso: string): string {
 }
 
 /** Build a single-event .ics (iCalendar) file for a class, suitable for "add to calendar". */
-export function buildClassIcs(cls: ClassRecord): string {
+export function buildClassIcs(cls: IcsEvent): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
