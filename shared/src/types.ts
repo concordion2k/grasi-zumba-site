@@ -100,6 +100,17 @@ export interface CrmCustomer extends PublicUser {
   noteCount: number;
 }
 
+/** A page of CRM customers, with metadata for the pagination controls. */
+export interface PaginatedCustomers {
+  customers: CrmCustomer[];
+  /** Total customers matching the current search (across all pages). */
+  total: number;
+  /** 1-based current page. */
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 // ---------------------------------------------------------------------------
 // Request / response DTOs
 // ---------------------------------------------------------------------------

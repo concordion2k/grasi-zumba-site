@@ -4,7 +4,7 @@ import type {
   PublicUser,
   ZumbaClassWithBookingState,
   BookingWithClass,
-  CrmCustomer,
+  PaginatedCustomers,
   CrmNote,
   RosterEntry,
   ZumbaClass,
@@ -79,7 +79,14 @@ export const settingsApi = {
 };
 
 export const adminApi = {
-  customers: () => api.get<{ customers: CrmCustomer[] }>('/admin/customers'),
+  customers: (params: { search?: string; page?: number; pageSize?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.page) qs.set('page', String(params.page));
+    if (params.pageSize) qs.set('pageSize', String(params.pageSize));
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return api.get<PaginatedCustomers>(`/admin/customers${suffix}`);
+  },
   customer: (id: string) =>
     api.get<{
       user: PublicUser;

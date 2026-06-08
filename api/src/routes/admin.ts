@@ -7,6 +7,7 @@ import {
   updateClassSchema,
   createNoteSchema,
   updateSettingsSchema,
+  customerQuerySchema,
 } from '../schemas.js';
 import { listUsers, getUserById, toPublicUser } from '../domain/users.js';
 import {
@@ -66,15 +67,30 @@ adminRoutes.patch('/settings', async (c) => {
 // --- CRM: customers ---------------------------------------------------------
 
 adminRoutes.get('/customers', async (c) => {
-  const users = await listUsers();
+  const { search, page, pageSize } = customerQuerySchema.parse(c.req.query());
+
+  // listUsers returns the full set (newest-first). Filter by name/email, then paginate, and only
+  // do the per-customer booking/note counts for the page being shown — not the whole list.
+  const all = await listUsers();
+  const term = search?.toLowerCase();
+  const filtered = term
+    ? all.filter((u) => u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term))
+    : all;
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * pageSize;
+  const pageUsers = filtered.slice(start, start + pageSize);
+
   const customers: CrmCustomer[] = await Promise.all(
-    users.map(async (u) => ({
+    pageUsers.map(async (u) => ({
       ...(await toPublicUser(u)),
       bookingCount: await countUserBookings(u.userId),
       noteCount: await countNotes(u.userId),
     })),
   );
-  return c.json({ customers });
+  return c.json({ customers, total, page: currentPage, pageSize, totalPages });
 });
 
 adminRoutes.get('/customers/:userId', async (c) => {
