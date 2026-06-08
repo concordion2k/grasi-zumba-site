@@ -45,7 +45,14 @@ export interface ZumbaClass {
   startTime: string;
   /** ISO timestamp for when the class ends. */
   endTime: string;
+  /** Composed one-line display address (derived from the structured fields below). */
   location: string;
+  /** Structured address parts. Optional only because classes created before this feature lack them. */
+  street1?: string;
+  street2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   capacity: number;
   /** How many spots are currently taken. */
   bookedCount: number;
@@ -160,7 +167,11 @@ export interface CreateClassRequest {
   description: string;
   startTime: string;
   durationMinutes: number;
-  location: string;
+  street1: string;
+  street2?: string;
+  city: string;
+  state: string;
+  zip: string;
   capacity: number;
 }
 
@@ -170,7 +181,11 @@ export interface UpdateClassRequest {
   description?: string;
   startTime?: string;
   durationMinutes?: number;
-  location?: string;
+  street1?: string;
+  street2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   capacity?: number;
 }
 

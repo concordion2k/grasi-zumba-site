@@ -39,6 +39,19 @@ export function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+/** Compose a one-line display address from structured parts, e.g.
+ *  "1229 Payne Stewart Dr, Apt 4, Davenport, FL 33896". */
+export function composeAddress(a: {
+  street1: string;
+  street2?: string;
+  city: string;
+  state: string;
+  zip: string;
+}): string {
+  const cityLine = [a.city, [a.state, a.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  return [a.street1?.trim(), a.street2?.trim(), cityLine].filter(Boolean).join(', ');
+}
+
 // ---------------------------------------------------------------------------
 // Liability waiver
 // ---------------------------------------------------------------------------

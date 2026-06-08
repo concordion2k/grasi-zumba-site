@@ -14,6 +14,7 @@ import {
   CLASS_PACKAGES,
   DROP_IN_PRICE_CENTS,
   formatUsd,
+  composeAddress,
 } from '@grasi/shared';
 import { adminApi, classesApi } from '@/api/endpoints';
 import { ApiRequestError } from '@/api/client';
@@ -62,23 +63,47 @@ const EMPTY_FORM = {
   description: '',
   startTime: '',
   durationMinutes: 60,
-  location: '',
+  street1: '',
+  street2: '',
+  city: '',
+  state: '',
+  zip: '',
   capacity: 20,
 };
+
+const addressPreview = computed(() => composeAddress(form.value));
 const form = ref({ ...EMPTY_FORM });
 const creating = ref(false);
 /** Set when editing an existing class; null when creating a new one. */
 const editingId = ref<string | null>(null);
 
-// Existing classes (for edit/cancel).
+// Existing classes (for edit/cancel): upcoming only, soonest first, paginated.
 const classes = ref<ZumbaClassWithBookingState[]>([]);
 const loadingClasses = ref(false);
 const cancelingId = ref<string | null>(null);
+const CLASS_PAGE_SIZE = 10;
+const classPage = ref(1);
+
+const sortedClasses = computed(() =>
+  classes.value
+    .filter((c) => !isPast(c.startTime))
+    .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+);
+const classTotalPages = computed(() =>
+  Math.max(1, Math.ceil(sortedClasses.value.length / CLASS_PAGE_SIZE)),
+);
+const pagedClasses = computed(() =>
+  sortedClasses.value.slice(
+    (classPage.value - 1) * CLASS_PAGE_SIZE,
+    classPage.value * CLASS_PAGE_SIZE,
+  ),
+);
 
 async function loadClasses() {
   loadingClasses.value = true;
   try {
     classes.value = (await classesApi.list()).classes;
+    classPage.value = Math.min(classPage.value, classTotalPages.value);
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Could not load classes.';
   } finally {
@@ -107,7 +132,11 @@ function startEdit(cls: ZumbaClassWithBookingState) {
     durationMinutes: Math.round(
       (new Date(cls.endTime).getTime() - new Date(cls.startTime).getTime()) / 60000,
     ),
-    location: cls.location,
+    street1: cls.street1 ?? cls.location,
+    street2: cls.street2 ?? '',
+    city: cls.city ?? '',
+    state: cls.state ?? '',
+    zip: cls.zip ?? '',
     capacity: cls.capacity,
   };
   error.value = '';
@@ -385,7 +414,7 @@ onMounted(loadClasses); // schedule is the default tab
       <div v-if="notice" class="alert alert-success">{{ notice }}</div>
 
       <!-- Schedule -->
-      <section v-if="tab === 'schedule'">
+      <section v-if="tab === 'schedule'" class="schedule-grid">
         <div class="card form-card">
           <h2 class="form-title">{{ editingId ? 'Edit class' : 'Schedule a class' }}</h2>
           <form @submit.prevent="submitClass">
@@ -414,11 +443,47 @@ onMounted(loadClasses); // schedule is the default tab
                 />
               </div>
             </div>
-            <div class="form-row">
+            <div class="field">
+              <label for="street1">Street address</label>
+              <input id="street1" v-model="form.street1" type="text" required maxlength="120" />
+            </div>
+            <div class="field">
+              <label for="street2">Apt / suite <span class="muted">(optional)</span></label>
+              <input id="street2" v-model="form.street2" type="text" maxlength="120" />
+            </div>
+            <div class="form-row addr-row">
               <div class="field">
-                <label for="loc">Location</label>
-                <input id="loc" v-model="form.location" type="text" required />
+                <label for="city">City</label>
+                <input id="city" v-model="form.city" type="text" required maxlength="80" />
               </div>
+              <div class="field">
+                <label for="state">State</label>
+                <input
+                  id="state"
+                  v-model="form.state"
+                  type="text"
+                  required
+                  maxlength="50"
+                  placeholder="FL"
+                />
+              </div>
+              <div class="field">
+                <label for="zip">ZIP</label>
+                <input
+                  id="zip"
+                  v-model="form.zip"
+                  type="text"
+                  required
+                  maxlength="12"
+                  inputmode="numeric"
+                  placeholder="33896"
+                />
+              </div>
+            </div>
+            <p v-if="form.street1" class="muted small addr-preview">
+              📍 {{ addressPreview }} — a map of this address shows on the class card.
+            </p>
+            <div class="form-row">
               <div class="field">
                 <label for="cap">Capacity</label>
                 <input
@@ -446,10 +511,10 @@ onMounted(loadClasses); // schedule is the default tab
         <div class="card class-list-card">
           <h2 class="form-title">Upcoming classes</h2>
           <div v-if="loadingClasses" class="spinner"></div>
-          <p v-else-if="classes.length === 0" class="muted">No classes scheduled yet.</p>
+          <p v-else-if="sortedClasses.length === 0" class="muted">No upcoming classes.</p>
           <ul v-else class="class-list">
             <li
-              v-for="cls in classes"
+              v-for="cls in pagedClasses"
               :key="cls.classId"
               :class="{ editing: editingId === cls.classId }"
             >
@@ -458,7 +523,6 @@ onMounted(loadClasses); // schedule is the default tab
                 <span class="muted small block">{{ formatRange(cls.startTime, cls.endTime) }}</span>
                 <span class="muted small block">
                   📍 {{ cls.location }} · {{ cls.bookedCount }}/{{ cls.capacity }} booked
-                  <span v-if="isPast(cls.startTime)" class="pill pill-past">past</span>
                 </span>
               </div>
               <div class="class-actions">
@@ -476,6 +540,20 @@ onMounted(loadClasses); // schedule is the default tab
               </div>
             </li>
           </ul>
+
+          <div v-if="classTotalPages > 1" class="pager">
+            <button class="btn btn-ghost btn-sm" :disabled="classPage <= 1" @click="classPage--">
+              ← Prev
+            </button>
+            <span class="pager-info">Page {{ classPage }} of {{ classTotalPages }}</span>
+            <button
+              class="btn btn-ghost btn-sm"
+              :disabled="classPage >= classTotalPages"
+              @click="classPage++"
+            >
+              Next →
+            </button>
+          </div>
         </div>
       </section>
 
@@ -883,6 +961,25 @@ onMounted(loadClasses); // schedule is the default tab
   color: #fff;
   box-shadow: var(--shadow-sm);
 }
+/* Schedule tab: form on the left, class list on the right (stacks on narrow screens). */
+.schedule-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .schedule-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* When side-by-side, each card fills its column (the 640px cap applies to the stacked layout). */
+@media (min-width: 901px) {
+  .schedule-grid .form-card,
+  .schedule-grid .class-list-card {
+    max-width: none;
+  }
+}
 .form-card {
   max-width: 640px;
 }
@@ -894,6 +991,17 @@ onMounted(loadClasses); // schedule is the default tab
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
+/* Grid items default to min-width:auto (= the input's intrinsic width), which makes the columns
+   overflow. min-width:0 lets the inputs shrink to their grid track. */
+.form-row .field {
+  min-width: 0;
+}
+.addr-row {
+  grid-template-columns: 2fr 1fr 1fr;
+}
+.addr-preview {
+  margin: 0.25rem 0 0;
+}
 .form-actions {
   display: flex;
   gap: 0.6rem;
@@ -904,7 +1012,6 @@ onMounted(loadClasses); // schedule is the default tab
 /* Existing-classes list (schedule tab) */
 .class-list-card {
   max-width: 640px;
-  margin-top: 1.25rem;
 }
 .class-list {
   list-style: none;

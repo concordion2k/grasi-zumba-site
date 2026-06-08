@@ -5,7 +5,7 @@ import {
   UpdateCommand,
   BatchWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
-import type { ZumbaClass } from '@grasi/shared';
+import { composeAddress, type ZumbaClass } from '@grasi/shared';
 import { ddb, TABLE } from '../lib/dynamo.js';
 import { key, gsi1, GSI1 } from '../lib/keys.js';
 import { newId } from '../lib/ids.js';
@@ -17,7 +17,13 @@ export interface ClassRecord {
   description: string;
   startTime: string;
   endTime: string;
+  /** Composed one-line display address (kept in sync with the structured fields). */
   location: string;
+  street1: string;
+  street2?: string;
+  city: string;
+  state: string;
+  zip: string;
   capacity: number;
   bookedCount: number;
   createdBy: string;
@@ -29,7 +35,11 @@ interface CreateClassInput {
   description: string;
   startTime: string;
   durationMinutes: number;
-  location: string;
+  street1: string;
+  street2?: string;
+  city: string;
+  state: string;
+  zip: string;
   capacity: number;
 }
 
@@ -38,7 +48,11 @@ interface UpdateClassInput {
   description?: string;
   startTime?: string;
   durationMinutes?: number;
-  location?: string;
+  street1?: string;
+  street2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   capacity?: number;
 }
 
@@ -58,7 +72,12 @@ export async function createClass(
     description: input.description,
     startTime: input.startTime,
     endTime,
-    location: input.location,
+    location: composeAddress(input),
+    street1: input.street1,
+    street2: input.street2,
+    city: input.city,
+    state: input.state,
+    zip: input.zip,
     capacity: input.capacity,
     bookedCount: 0,
     createdBy,
@@ -115,8 +134,30 @@ export async function updateClass(
   const next: Record<string, unknown> = {};
   if (input.title !== undefined) next.title = input.title;
   if (input.description !== undefined) next.description = input.description;
-  if (input.location !== undefined) next.location = input.location;
   if (input.capacity !== undefined) next.capacity = input.capacity;
+
+  // If any address part changed, merge with the existing address and recompose the display string.
+  const addrChanged =
+    input.street1 !== undefined ||
+    input.street2 !== undefined ||
+    input.city !== undefined ||
+    input.state !== undefined ||
+    input.zip !== undefined;
+  if (addrChanged) {
+    const merged = {
+      street1: input.street1 ?? before.street1,
+      street2: input.street2 ?? before.street2,
+      city: input.city ?? before.city,
+      state: input.state ?? before.state,
+      zip: input.zip ?? before.zip,
+    };
+    next.street1 = merged.street1;
+    next.city = merged.city;
+    next.state = merged.state;
+    next.zip = merged.zip;
+    if (merged.street2 !== undefined) next.street2 = merged.street2;
+    next.location = composeAddress(merged);
+  }
   if (startChanged || durationChanged) {
     next.startTime = startTime;
     next.endTime = endTime;
@@ -188,6 +229,11 @@ export function toZumbaClass(record: ClassRecord): ZumbaClass {
     startTime: record.startTime,
     endTime: record.endTime,
     location: record.location,
+    street1: record.street1,
+    street2: record.street2,
+    city: record.city,
+    state: record.state,
+    zip: record.zip,
     capacity: record.capacity,
     bookedCount: record.bookedCount,
     createdBy: record.createdBy,

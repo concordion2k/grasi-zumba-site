@@ -3,6 +3,7 @@ import type { AppEnv } from '../types.js';
 import type { ZumbaClassWithBookingState } from '@grasi/shared';
 import { listClassesInRange, getClass, toZumbaClass } from '../domain/classes.js';
 import { listUserBookings } from '../domain/bookings.js';
+import { buildClassIcs } from '../lib/ics.js';
 import { notFound } from '../lib/errors.js';
 
 export const classRoutes = new Hono<AppEnv>();
@@ -33,6 +34,18 @@ classRoutes.get('/', async (c) => {
     };
   });
   return c.json({ classes: result });
+});
+
+/** Public: a calendar invite (.ics) for a class — used by the account page and the booking email. */
+classRoutes.get('/:classId/calendar.ics', async (c) => {
+  const record = await getClass(c.req.param('classId'));
+  if (!record) throw notFound('Class not found');
+  return new Response(buildClassIcs(record), {
+    headers: {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': `attachment; filename="zumba-class-${record.classId}.ics"`,
+    },
+  });
 });
 
 /** Public: a single class. */
