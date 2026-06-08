@@ -13,8 +13,17 @@ function optional(name: string, fallback: string): string {
 }
 
 export const env = {
-  tableName: required('TABLE_NAME'),
-  uploadsBucket: required('UPLOADS_BUCKET'),
+  // Lazy (getters): only validated when actually read, so an entrypoint that doesn't use a given
+  // var (e.g. the mailer worker doesn't need UPLOADS_BUCKET) won't crash on import.
+  get tableName() {
+    return required('TABLE_NAME');
+  },
+  get uploadsBucket() {
+    return required('UPLOADS_BUCKET');
+  },
+  get sessionSecret() {
+    return required('SESSION_SECRET');
+  },
   region: optional('AWS_REGION', 'us-east-1'),
   /** Set for local DynamoDB (LocalStack); undefined in production. */
   dynamoEndpoint: process.env.DYNAMODB_ENDPOINT || undefined,
@@ -22,7 +31,6 @@ export const env = {
   s3Endpoint: process.env.S3_ENDPOINT || undefined,
   /** Local S3 emulators need path-style addressing (bucket in the path, not the host). */
   s3ForcePathStyle: (process.env.S3_FORCE_PATH_STYLE ?? 'false') === 'true',
-  sessionSecret: required('SESSION_SECRET'),
   adminBootstrapEmails: optional('ADMIN_BOOTSTRAP_EMAILS', '')
     .split(',')
     .map((e) => e.trim().toLowerCase())

@@ -298,6 +298,12 @@ data "aws_iam_policy_document" "deploy_perms" {
     ]
     resources = ["*"]
   }
+  # Tagging the event-source mapping (provider default_tags) — scoped to mapping ARNs.
+  statement {
+    sid       = "LambdaEsmTags"
+    actions   = ["lambda:TagResource", "lambda:UntagResource", "lambda:ListTags"]
+    resources = ["arn:aws:lambda:${local.region}:${local.acct}:event-source-mapping:*"]
+  }
 
   statement {
     sid       = "StsIdentity"
