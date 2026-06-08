@@ -12,7 +12,8 @@ import { classesApi } from '@/api/endpoints';
 import { ApiRequestError } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import ClassCard from '@/components/ClassCard.vue';
-import { isPast } from '@/utils/format';
+import ConfirmModal from '@/components/ConfirmModal.vue';
+import { isPast, formatRange } from '@/utils/format';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -95,13 +96,25 @@ function isWaiverRequired(e: unknown): boolean {
   );
 }
 
-async function book(id: string) {
-  busyId.value = id;
+// Booking confirmation modal.
+const pendingClass = ref<ZumbaClassWithBookingState | null>(null);
+
+/** ClassCard "book" → open the confirmation modal. */
+function requestBook(id: string) {
+  pendingClass.value = classes.value.find((c) => c.classId === id) ?? null;
+}
+
+async function confirmBook() {
+  const cls = pendingClass.value;
+  if (!cls) return;
+  busyId.value = cls.classId;
   error.value = '';
   try {
-    await classesApi.book(id);
+    await classesApi.book(cls.classId);
+    pendingClass.value = null;
     await load();
   } catch (e) {
+    pendingClass.value = null;
     if (isWaiverRequired(e)) {
       // Send them to sign, then return to the schedule to finish booking.
       router.push({ name: 'waiver', query: { redirect: '/schedule' } });
@@ -174,13 +187,28 @@ onUnmounted(() => window.removeEventListener('resize', handleResize));
               :cls="c"
               :busy="busyId === c.classId"
               :can-book="auth.isAuthenticated"
-              @book="book"
+              @book="requestBook"
               @cancel="cancel"
             />
           </div>
         </div>
       </template>
     </div>
+
+    <ConfirmModal
+      :open="pendingClass !== null"
+      title="Book this class?"
+      confirm-text="Yes, book it 💃"
+      :busy="busyId !== null"
+      @confirm="confirmBook"
+      @cancel="pendingClass = null"
+    >
+      <template v-if="pendingClass">
+        You're about to book <strong>{{ pendingClass.title }}</strong>
+        <br />
+        <span class="muted">{{ formatRange(pendingClass.startTime, pendingClass.endTime) }}</span>
+      </template>
+    </ConfirmModal>
   </div>
 </template>
 
