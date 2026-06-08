@@ -5,7 +5,7 @@ import {
   UpdateCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import type { PublicUser, UserRole, NotificationPrefs } from '@grasi/shared';
+import type { PublicUser, UserRole, NotificationPrefs, SubscriptionStatus } from '@grasi/shared';
 import { ddb, TABLE } from '../lib/dynamo.js';
 import { key, gsi1, GSI1 } from '../lib/keys.js';
 import { newId } from '../lib/ids.js';
@@ -25,6 +25,10 @@ export interface UserRecord {
   notifyNewClass?: boolean;
   notifyBookingConfirm?: boolean;
   notifyClassChange?: boolean;
+  /** Class-credit balance (mock billing). Absent = 0. */
+  classCredits?: number;
+  /** Unlimited-plan subscription (mock billing). Absent = none. */
+  subscription?: SubscriptionStatus;
 }
 
 /** Defaults for users who predate a given preference (new-class is opt-in; the rest are on). */
