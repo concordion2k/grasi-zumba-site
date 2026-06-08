@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import type {
   CrmCustomer,
-  CrmNote,
   PublicUser,
-  BookingWithClass,
   ZumbaClassWithBookingState,
-  WaiverStatus,
+  CustomerOverview,
+  BillingSummary,
+  LedgerEntry,
+  LedgerEntryType,
 } from '@grasi/shared';
-import { DEFAULT_BANNER_MESSAGE } from '@grasi/shared';
+import {
+  DEFAULT_BANNER_MESSAGE,
+  CLASS_PACKAGES,
+  DROP_IN_PRICE_CENTS,
+  formatUsd,
+} from '@grasi/shared';
 import { adminApi, classesApi } from '@/api/endpoints';
 import { ApiRequestError } from '@/api/client';
 import { useSettingsStore } from '@/stores/settings';
@@ -158,15 +164,88 @@ async function removeClass(cls: ZumbaClassWithBookingState) {
 // --- Customers (CRM) --------------------------------------------------------
 const customers = ref<CrmCustomer[]>([]);
 const loadingCustomers = ref(false);
-const selected = ref<{
-  user: PublicUser;
-  notes: CrmNote[];
-  bookings: BookingWithClass[];
-  waiver: WaiverStatus;
-} | null>(null);
+const selected = ref<CustomerOverview | null>(null);
 const loadingDetail = ref(false);
 const noteDraft = ref('');
 const savingNote = ref(false);
+
+// Customer-detail sub-tabs + billing actions
+const detailTab = ref<'billing' | 'bookings' | 'notes'>('billing');
+const creditAmount = ref(1);
+const creditNote = ref('');
+const packSize = ref<number>(CLASS_PACKAGES[1].size);
+const billingBusy = ref(false);
+
+const billing = computed<BillingSummary | null>(() => selected.value?.billing ?? null);
+
+const LEDGER_LABELS: Record<LedgerEntryType, string> = {
+  manual_credit: 'Credit added',
+  package_purchase: 'Package purchase',
+  dropin_payment: 'Drop-in',
+  subscription: 'Subscription',
+  adjustment: 'Adjustment',
+};
+
+// Transaction history: 10 most recent, paginate from there (the ledger is already loaded in full).
+const LEDGER_PAGE_SIZE = 10;
+const ledgerPage = ref(1);
+const ledger = computed(() => selected.value?.ledger ?? []);
+const ledgerTotalPages = computed(() =>
+  Math.max(1, Math.ceil(ledger.value.length / LEDGER_PAGE_SIZE)),
+);
+const pagedLedger = computed(() =>
+  ledger.value.slice(
+    (ledgerPage.value - 1) * LEDGER_PAGE_SIZE,
+    ledgerPage.value * LEDGER_PAGE_SIZE,
+  ),
+);
+
+function patchBilling(res: { billing: BillingSummary; ledger: LedgerEntry[] }) {
+  if (!selected.value) return;
+  selected.value.billing = res.billing;
+  selected.value.ledger = res.ledger;
+  ledgerPage.value = 1; // a new entry lands on top — jump back to the first page to show it
+}
+
+async function runBilling(fn: () => Promise<{ billing: BillingSummary; ledger: LedgerEntry[] }>) {
+  if (!selected.value || billingBusy.value) return;
+  billingBusy.value = true;
+  error.value = '';
+  notice.value = '';
+  try {
+    patchBilling(await fn());
+  } catch (e) {
+    error.value = e instanceof ApiRequestError ? e.message : 'Billing update failed.';
+  } finally {
+    billingBusy.value = false;
+  }
+}
+
+function adjustCredits(sign: 1 | -1) {
+  const id = selected.value?.user.userId;
+  const amount = Math.trunc(Math.abs(creditAmount.value)) * sign;
+  if (!id || !amount) return;
+  runBilling(() => adminApi.adjustCredits(id, amount, creditNote.value.trim() || undefined)).then(
+    () => {
+      creditNote.value = '';
+    },
+  );
+}
+
+function buyPackage() {
+  const id = selected.value?.user.userId;
+  if (id) runBilling(() => adminApi.purchasePackage(id, packSize.value));
+}
+
+function recordDropIn() {
+  const id = selected.value?.user.userId;
+  if (id) runBilling(() => adminApi.recordDropIn(id));
+}
+
+function toggleSubscription() {
+  const id = selected.value?.user.userId;
+  if (id) runBilling(() => adminApi.setSubscription(id, !billing.value?.subscription?.active));
+}
 
 // Search + pagination
 const customerSearch = ref('');
@@ -175,7 +254,7 @@ const customerTotal = ref(0);
 const customerTotalPages = ref(1);
 /** True once the first customer load has resolved — drives "initial spinner" vs "inline reload". */
 const customersLoadedOnce = ref(false);
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 5;
 let searchDebounce: ReturnType<typeof setTimeout> | undefined;
 
 async function loadCustomers() {
@@ -216,6 +295,8 @@ function goToPage(p: number) {
 async function openCustomer(id: string) {
   loadingDetail.value = true;
   selected.value = null;
+  detailTab.value = 'billing';
+  ledgerPage.value = 1;
   try {
     selected.value = await adminApi.customer(id);
   } catch (e) {
@@ -479,64 +560,228 @@ onMounted(loadClasses); // schedule is the default tab
           <div v-if="loadingDetail" class="spinner"></div>
           <p v-else-if="!selected" class="muted center pick">← Pick a customer to see details.</p>
           <template v-else>
-            <header class="detail-head">
-              <h2>{{ selected.user.name }}</h2>
-              <span v-if="selected.user.role === 'admin'" class="pill pill-green">Admin</span>
-            </header>
-            <p class="muted">
-              {{ selected.user.email }} · 🎂 {{ formatBirthday(selected.user.birthday) }} · joined
-              {{ formatDate(selected.user.createdAt) }}
-            </p>
-
-            <p class="waiver-line">
-              <strong>Waiver:</strong>
-              <template v-if="selected.waiver.upToDate">
-                <span class="pill pill-green">Signed</span>
-                {{ selected.waiver.signedAt ? formatDate(selected.waiver.signedAt) : '' }}
-                <a
-                  :href="adminApi.waiverPdfUrl(selected.user.userId)"
-                  target="_blank"
-                  rel="noopener"
-                  >download PDF</a
-                >
-              </template>
-              <span v-else-if="selected.waiver.signed" class="pill">Outdated — needs re-sign</span>
-              <span v-else class="pill">Not signed</span>
-            </p>
-
-            <h3>Bookings</h3>
-            <p v-if="selected.bookings.length === 0" class="muted small">No bookings yet.</p>
-            <ul v-else class="booking-list">
-              <li v-for="b in selected.bookings" :key="b.class.classId">
-                <strong>{{ b.class.title }}</strong>
-                <span class="muted small block">{{
-                  formatRange(b.class.startTime, b.class.endTime)
-                }}</span>
-              </li>
-            </ul>
-
-            <h3>Notes 📝</h3>
-            <form class="note-form" @submit.prevent="addNote">
-              <textarea
-                v-model="noteDraft"
-                rows="2"
-                placeholder="Add a private note about this customer…"
+            <!-- Header -->
+            <header class="cust-head">
+              <img
+                v-if="selected.user.profilePictureUrl"
+                :src="selected.user.profilePictureUrl"
+                class="head-avatar"
+                alt=""
               />
-              <button class="btn btn-primary btn-sm" :disabled="savingNote || !noteDraft.trim()">
-                {{ savingNote ? 'Saving…' : 'Add note' }}
-              </button>
-            </form>
-            <ul class="note-list">
-              <li v-for="n in selected.notes" :key="n.noteId" class="note">
-                <p>{{ n.body }}</p>
-                <div class="note-meta">
-                  <span class="muted small"
-                    >{{ n.authorName }} · {{ formatDate(n.createdAt) }}</span
-                  >
-                  <button class="link-danger" @click="removeNote(n.noteId)">delete</button>
+              <span v-else class="head-avatar head-fallback">{{ selected.user.name[0] }}</span>
+              <div class="head-info">
+                <div class="head-name">
+                  <h2>{{ selected.user.name }}</h2>
+                  <span v-if="selected.user.role === 'admin'" class="pill pill-green">Admin</span>
                 </div>
-              </li>
-            </ul>
+                <p class="muted small">
+                  {{ selected.user.email }} · 🎂 {{ formatBirthday(selected.user.birthday) }} ·
+                  joined {{ formatDate(selected.user.createdAt) }}
+                </p>
+                <p class="muted small waiver-inline">
+                  Waiver:
+                  <template v-if="selected.waiver.upToDate">
+                    <span class="pill pill-green">Signed</span>
+                    <a
+                      :href="adminApi.waiverPdfUrl(selected.user.userId)"
+                      target="_blank"
+                      rel="noopener"
+                      >PDF</a
+                    >
+                  </template>
+                  <span v-else-if="selected.waiver.signed" class="pill">Outdated</span>
+                  <span v-else class="pill">Not signed</span>
+                </p>
+              </div>
+            </header>
+
+            <!-- Stat strip -->
+            <div v-if="billing" class="stat-strip">
+              <div class="stat">
+                <span class="stat-val">{{ billing.classCredits }}</span>
+                <span class="stat-label">Credits</span>
+              </div>
+              <div class="stat">
+                <span class="stat-val">
+                  <span v-if="billing.subscription?.active" class="pill pill-green">Unlimited</span>
+                  <span v-else class="muted">None</span>
+                </span>
+                <span class="stat-label">Plan</span>
+              </div>
+              <div class="stat">
+                <span class="stat-val">{{ selected.bookings.length }}</span>
+                <span class="stat-label">Bookings</span>
+              </div>
+              <div class="stat">
+                <span class="stat-val">{{ formatUsd(billing.totalPaidCents) }}</span>
+                <span class="stat-label">Lifetime</span>
+              </div>
+            </div>
+
+            <p v-if="billing?.needsDropIn" class="dropin-note">
+              No active plan — drop-in rate {{ formatUsd(DROP_IN_PRICE_CENTS) }}/class applies.
+            </p>
+
+            <!-- Sub-tabs -->
+            <div class="subtabs">
+              <button :class="{ on: detailTab === 'billing' }" @click="detailTab = 'billing'">
+                💳 Billing
+              </button>
+              <button :class="{ on: detailTab === 'bookings' }" @click="detailTab = 'bookings'">
+                📅 Bookings ({{ selected.bookings.length }})
+              </button>
+              <button :class="{ on: detailTab === 'notes' }" @click="detailTab = 'notes'">
+                📝 Notes ({{ selected.notes.length }})
+              </button>
+            </div>
+
+            <!-- Billing tab -->
+            <div v-if="detailTab === 'billing'">
+              <div class="billing-actions">
+                <div class="ba-row">
+                  <label class="ba-label">Credits</label>
+                  <input v-model.number="creditAmount" type="number" min="1" class="ba-num" />
+                  <button
+                    class="btn btn-primary btn-sm"
+                    :disabled="billingBusy"
+                    @click="adjustCredits(1)"
+                  >
+                    Add
+                  </button>
+                  <button
+                    class="btn btn-ghost btn-sm"
+                    :disabled="billingBusy"
+                    @click="adjustCredits(-1)"
+                  >
+                    Remove
+                  </button>
+                  <input v-model="creditNote" placeholder="note (optional)" class="ba-note" />
+                </div>
+                <div class="ba-row">
+                  <label class="ba-label">Package</label>
+                  <select v-model.number="packSize" class="ba-select">
+                    <option v-for="p in CLASS_PACKAGES" :key="p.size" :value="p.size">
+                      {{ p.size }} classes — {{ formatUsd(p.priceCents) }}
+                    </option>
+                  </select>
+                  <button
+                    class="btn btn-primary btn-sm"
+                    :disabled="billingBusy"
+                    @click="buyPackage"
+                  >
+                    Record purchase
+                  </button>
+                </div>
+                <div class="ba-row">
+                  <label class="ba-label">Drop-in</label>
+                  <button
+                    class="btn btn-primary btn-sm"
+                    :disabled="billingBusy"
+                    @click="recordDropIn"
+                  >
+                    Record drop-in ({{ formatUsd(DROP_IN_PRICE_CENTS) }})
+                  </button>
+                  <label class="ba-label ba-label-2">Subscription</label>
+                  <button
+                    class="btn btn-sm"
+                    :class="billing?.subscription?.active ? 'btn-danger' : 'btn-primary'"
+                    :disabled="billingBusy"
+                    @click="toggleSubscription"
+                  >
+                    {{ billing?.subscription?.active ? 'Cancel unlimited' : 'Activate unlimited' }}
+                  </button>
+                </div>
+              </div>
+
+              <h3 class="sec-title">Purchase &amp; credit history</h3>
+              <p v-if="ledger.length === 0" class="muted small">No transactions yet.</p>
+              <template v-else>
+                <table class="ledger">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th class="num">Credits</th>
+                      <th class="num">Amount</th>
+                      <th>By</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="e in pagedLedger" :key="e.entryId">
+                      <td class="nowrap">{{ formatDate(e.createdAt) }}</td>
+                      <td>
+                        {{ LEDGER_LABELS[e.type] }}
+                        <span v-if="e.note" class="muted small block">{{ e.note }}</span>
+                      </td>
+                      <td
+                        class="num"
+                        :class="e.creditDelta > 0 ? 'pos' : e.creditDelta < 0 ? 'neg' : ''"
+                      >
+                        {{ e.creditDelta > 0 ? '+' : '' }}{{ e.creditDelta || '—' }}
+                      </td>
+                      <td class="num">{{ e.amountCents ? formatUsd(e.amountCents) : '—' }}</td>
+                      <td class="muted small">{{ e.by }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div v-if="ledgerTotalPages > 1" class="pager">
+                  <button
+                    class="btn btn-ghost btn-sm"
+                    :disabled="ledgerPage <= 1"
+                    @click="ledgerPage--"
+                  >
+                    ← Prev
+                  </button>
+                  <span class="pager-info">Page {{ ledgerPage }} of {{ ledgerTotalPages }}</span>
+                  <button
+                    class="btn btn-ghost btn-sm"
+                    :disabled="ledgerPage >= ledgerTotalPages"
+                    @click="ledgerPage++"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </template>
+            </div>
+
+            <!-- Bookings tab -->
+            <div v-else-if="detailTab === 'bookings'">
+              <p v-if="selected.bookings.length === 0" class="muted small">No bookings yet.</p>
+              <ul v-else class="booking-list">
+                <li v-for="b in selected.bookings" :key="b.class.classId">
+                  <strong>{{ b.class.title }}</strong>
+                  <span class="muted small block">{{
+                    formatRange(b.class.startTime, b.class.endTime)
+                  }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Notes tab -->
+            <div v-else>
+              <form class="note-form" @submit.prevent="addNote">
+                <textarea
+                  v-model="noteDraft"
+                  rows="2"
+                  placeholder="Add a private note about this customer…"
+                />
+                <button class="btn btn-primary btn-sm" :disabled="savingNote || !noteDraft.trim()">
+                  {{ savingNote ? 'Saving…' : 'Add note' }}
+                </button>
+              </form>
+              <ul class="note-list">
+                <li v-for="n in selected.notes" :key="n.noteId" class="note">
+                  <p>{{ n.body }}</p>
+                  <div class="note-meta">
+                    <span class="muted small"
+                      >{{ n.authorName }} · {{ formatDate(n.createdAt) }}</span
+                    >
+                    <button class="link-danger" @click="removeNote(n.noteId)">delete</button>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </template>
         </div>
       </section>
@@ -910,18 +1155,194 @@ onMounted(loadClasses); // schedule is the default tab
 .pick {
   padding: 2rem 0;
 }
-.detail-head {
+/* Customer dashboard header */
+.cust-head {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  gap: 0.85rem;
+  align-items: flex-start;
 }
-.waiver-line {
+.head-avatar {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+}
+.head-fallback {
+  background: var(--grad-tropical);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.4rem;
+  text-transform: uppercase;
+}
+.head-info {
+  min-width: 0;
+}
+.head-name {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 0.5rem;
-  margin: 0.25rem 0 1rem;
 }
+.head-name h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.head-info p {
+  margin: 0.15rem 0 0;
+}
+.waiver-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* Stat strip */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.6rem 0.4rem;
+  background: var(--c-paper);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+.stat-val {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+.stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--c-ink-soft);
+}
+.dropin-note {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.85rem;
+  background: rgba(255, 122, 0, 0.1);
+  color: #8a4b00;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+/* Detail sub-tabs */
+.subtabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--c-line);
+}
+.subtabs button {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--c-ink-soft);
+  padding: 0.5rem 0.6rem;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+.subtabs button.on {
+  color: var(--c-pink-dark);
+  border-bottom-color: var(--c-pink);
+}
+
+/* Billing actions */
+.billing-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+.ba-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.ba-label {
+  font-weight: 700;
+  font-size: 0.82rem;
+  min-width: 4.5rem;
+  color: var(--c-ink-soft);
+}
+.ba-label-2 {
+  min-width: auto;
+  margin-left: 0.5rem;
+}
+.ba-num {
+  width: 4rem;
+}
+.ba-note {
+  flex: 1;
+  min-width: 8rem;
+}
+.ba-num,
+.ba-note,
+.ba-select {
+  padding: 0.4rem 0.6rem;
+  border: 2px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+}
+
+/* Ledger table */
+.sec-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.ledger th,
+.ledger td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--c-line);
+  vertical-align: top;
+}
+.ledger th {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  color: var(--c-ink-soft);
+}
+.ledger .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ledger .nowrap {
+  white-space: nowrap;
+}
+.ledger .pos {
+  color: var(--c-green-deep);
+  font-weight: 700;
+}
+.ledger .neg {
+  color: var(--c-pink-dark);
+  font-weight: 700;
+}
+
 .booking-list,
 .note-list {
   list-style: none;

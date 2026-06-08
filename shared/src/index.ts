@@ -14,6 +14,32 @@ export const DEFAULT_BANNER_MESSAGE =
   'Our business is not live yet, so please be patient! In the meantime, please take a look at what we plan to offer!';
 
 // ---------------------------------------------------------------------------
+// Pricing & billing (mock — amounts in cents, single source of truth)
+// ---------------------------------------------------------------------------
+
+/** Single drop-in class (used when a customer has no pack/subscription). */
+export const DROP_IN_PRICE_CENTS = 1500;
+
+/** Class packs: bulk credits at a discount. Valid for PACKAGE_EXPIRY_DAYS from purchase. */
+export const CLASS_PACKAGES = [
+  { size: 5, priceCents: 7000 },
+  { size: 10, priceCents: 13000 },
+  { size: 20, priceCents: 24000 },
+] as const;
+export type ClassPackageSize = (typeof CLASS_PACKAGES)[number]['size'];
+
+/** Monthly unlimited subscription. */
+export const SUBSCRIPTION_PRICE_CENTS = 19900;
+
+/** How long a purchased pack's credits stay valid (display/mock; not enforced on the balance yet). */
+export const PACKAGE_EXPIRY_DAYS = 180;
+
+/** Format cents as USD, e.g. 1500 → "$15.00". */
+export function formatUsd(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+// ---------------------------------------------------------------------------
 // Liability waiver
 // ---------------------------------------------------------------------------
 

@@ -8,8 +8,19 @@ import {
   createNoteSchema,
   updateSettingsSchema,
   customerQuerySchema,
+  adjustCreditsSchema,
+  packagePurchaseSchema,
+  setSubscriptionSchema,
 } from '../schemas.js';
 import { listUsers, getUserById, toPublicUser } from '../domain/users.js';
+import {
+  listLedger,
+  billingSummary,
+  adjustCredits,
+  recordPackagePurchase,
+  recordDropIn,
+  setSubscription,
+} from '../domain/billing.js';
 import {
   createClass,
   updateClass,
@@ -98,10 +109,11 @@ adminRoutes.get('/customers/:userId', async (c) => {
   const user = await getUserById(userId);
   if (!user) throw notFound('Customer not found');
 
-  const [notes, bookingRefs, waiver] = await Promise.all([
+  const [notes, bookingRefs, waiver, ledger] = await Promise.all([
     listNotes(userId),
     listUserBookings(userId),
     getWaiverStatus(userId),
+    listLedger(userId),
   ]);
 
   const bookings: BookingWithClass[] = [];
@@ -116,7 +128,57 @@ adminRoutes.get('/customers/:userId', async (c) => {
   }
   bookings.sort((a, b) => b.class.startTime.localeCompare(a.class.startTime));
 
-  return c.json({ user: await toPublicUser(user), notes, bookings, waiver });
+  return c.json({
+    user: await toPublicUser(user),
+    notes,
+    bookings,
+    waiver,
+    billing: billingSummary(user, ledger),
+    ledger,
+  });
+});
+
+// --- Billing (mock; admin-driven until Stripe is wired) ---------------------
+
+/** Refetch the user + ledger and return just the billing slice, for the UI to patch in place. */
+async function billingPayload(userId: string) {
+  const [user, ledger] = await Promise.all([getUserById(userId), listLedger(userId)]);
+  return { billing: billingSummary(user!, ledger), ledger };
+}
+
+adminRoutes.post('/customers/:userId/credits', async (c) => {
+  const admin = currentUser(c);
+  const userId = c.req.param('userId');
+  if (!(await getUserById(userId))) throw notFound('Customer not found');
+  const { amount, note } = adjustCreditsSchema.parse(await c.req.json());
+  await adjustCredits(userId, amount, note ?? '', admin.name);
+  return c.json(await billingPayload(userId), 201);
+});
+
+adminRoutes.post('/customers/:userId/package', async (c) => {
+  const admin = currentUser(c);
+  const userId = c.req.param('userId');
+  if (!(await getUserById(userId))) throw notFound('Customer not found');
+  const { size } = packagePurchaseSchema.parse(await c.req.json());
+  await recordPackagePurchase(userId, size, admin.name);
+  return c.json(await billingPayload(userId), 201);
+});
+
+adminRoutes.post('/customers/:userId/dropin', async (c) => {
+  const admin = currentUser(c);
+  const userId = c.req.param('userId');
+  if (!(await getUserById(userId))) throw notFound('Customer not found');
+  await recordDropIn(userId, admin.name);
+  return c.json(await billingPayload(userId), 201);
+});
+
+adminRoutes.post('/customers/:userId/subscription', async (c) => {
+  const admin = currentUser(c);
+  const userId = c.req.param('userId');
+  if (!(await getUserById(userId))) throw notFound('Customer not found');
+  const { active } = setSubscriptionSchema.parse(await c.req.json());
+  await setSubscription(userId, active, admin.name);
+  return c.json(await billingPayload(userId), 201);
 });
 
 /** Download a customer's signed waiver PDF (admin record-keeping). */

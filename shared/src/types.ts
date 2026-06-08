@@ -206,6 +206,77 @@ export interface UpdateSettingsRequest {
 }
 
 // ---------------------------------------------------------------------------
+// Billing & entitlements (mock; Stripe-ready)
+// ---------------------------------------------------------------------------
+
+export type LedgerEntryType =
+  | 'manual_credit' // admin granted credits
+  | 'package_purchase' // bought a class pack (credits + payment)
+  | 'dropin_payment' // paid for a single drop-in class (payment, no credit change)
+  | 'subscription' // subscription started/charged
+  | 'adjustment'; // admin removed/corrected credits
+
+/** One append-only billing event. The ledger is the customer's purchase/credit history. */
+export interface LedgerEntry {
+  entryId: string;
+  /** ISO timestamp. */
+  createdAt: string;
+  type: LedgerEntryType;
+  /** Change to the class-credit balance (+/-, or 0 for money-only entries like a drop-in). */
+  creditDelta: number;
+  /** Money amount in cents (mock). 0 for non-payment entries like a manual credit. */
+  amountCents: number;
+  note: string;
+  /** Who recorded it — an admin's name now; 'stripe' once real payments land. */
+  by: string;
+  provider: 'mock' | 'stripe';
+}
+
+export interface SubscriptionStatus {
+  active: boolean;
+  plan: 'unlimited';
+  /** ISO timestamp. */
+  startedAt: string;
+  /** ISO timestamp the mock subscription renews/expires. */
+  renewsAt: string;
+  provider: 'mock' | 'stripe';
+}
+
+/** A customer's billing position at a glance. */
+export interface BillingSummary {
+  /** Remaining class credits. */
+  classCredits: number;
+  subscription: SubscriptionStatus | null;
+  /** Lifetime mock spend (sum of ledger amounts), in cents. */
+  totalPaidCents: number;
+  /** True when the customer can't cover a class from credits or a subscription → drop-in applies. */
+  needsDropIn: boolean;
+}
+
+/** Everything the admin customer dashboard renders, in one payload. */
+export interface CustomerOverview {
+  user: PublicUser;
+  notes: CrmNote[];
+  bookings: BookingWithClass[];
+  waiver: WaiverStatus;
+  billing: BillingSummary;
+  ledger: LedgerEntry[];
+}
+
+/** Admin billing actions. */
+export interface AdjustCreditsRequest {
+  /** Positive to grant, negative to remove. */
+  amount: number;
+  note?: string;
+}
+export interface PackagePurchaseRequest {
+  size: number;
+}
+export interface SetSubscriptionRequest {
+  active: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // Liability waiver
 // ---------------------------------------------------------------------------
 

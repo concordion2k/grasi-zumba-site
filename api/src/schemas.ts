@@ -114,6 +114,23 @@ export const createNoteSchema = z.object({
   body: z.string().trim().min(1, 'Note cannot be empty').max(5000),
 });
 
+// --- Billing (admin mock actions) ---
+export const adjustCreditsSchema = z.object({
+  amount: z
+    .number()
+    .int()
+    .refine((n) => n !== 0, 'Enter a non-zero amount'),
+  note: z.string().trim().max(200).optional(),
+});
+
+export const packagePurchaseSchema = z.object({
+  size: z.number().int().positive(),
+});
+
+export const setSubscriptionSchema = z.object({
+  active: z.boolean(),
+});
+
 export const presignUploadSchema = z.object({
   contentType: z.enum(ALLOWED_IMAGE_TYPES),
 });

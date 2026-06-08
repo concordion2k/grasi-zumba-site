@@ -23,8 +23,14 @@ import type {
   UnsubscribeResponse,
   WaiverStatus,
   SignWaiverRequest,
+  CustomerOverview,
+  BillingSummary,
+  LedgerEntry,
 } from '@grasi/shared';
 import { api, uploadToS3 } from './client.js';
+
+/** Billing actions return the refreshed billing slice so the UI can patch in place. */
+type BillingResult = { billing: BillingSummary; ledger: LedgerEntry[] };
 
 export const contactApi = {
   send: (body: ContactRequest) => api.post<{ ok: true }>('/contact', body),
@@ -87,14 +93,15 @@ export const adminApi = {
     const suffix = qs.toString() ? `?${qs}` : '';
     return api.get<PaginatedCustomers>(`/admin/customers${suffix}`);
   },
-  customer: (id: string) =>
-    api.get<{
-      user: PublicUser;
-      notes: CrmNote[];
-      bookings: BookingWithClass[];
-      waiver: WaiverStatus;
-    }>(`/admin/customers/${id}`),
+  customer: (id: string) => api.get<CustomerOverview>(`/admin/customers/${id}`),
   waiverPdfUrl: (id: string) => `/api/admin/customers/${id}/waiver/pdf`,
+  adjustCredits: (id: string, amount: number, note?: string) =>
+    api.post<BillingResult>(`/admin/customers/${id}/credits`, { amount, note }),
+  purchasePackage: (id: string, size: number) =>
+    api.post<BillingResult>(`/admin/customers/${id}/package`, { size }),
+  recordDropIn: (id: string) => api.post<BillingResult>(`/admin/customers/${id}/dropin`),
+  setSubscription: (id: string, active: boolean) =>
+    api.post<BillingResult>(`/admin/customers/${id}/subscription`, { active }),
   addNote: (id: string, body: string) =>
     api.post<{ note: CrmNote }>(`/admin/customers/${id}/notes`, { body }),
   deleteNote: (customerId: string, noteId: string) =>

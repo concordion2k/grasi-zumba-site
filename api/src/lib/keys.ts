@@ -36,6 +36,10 @@ export const key = {
   session: (tokenHash: string) => ({ pk: `SESSION#${tokenHash}`, sk: 'SESSION' }),
   siteSettings: () => ({ pk: 'SETTINGS', sk: 'SITE' }),
   waiver: (userId: string) => ({ pk: `USER#${userId}`, sk: 'WAIVER' }),
+  ledgerEntry: (userId: string, createdAt: string, entryId: string) => ({
+    pk: `USER#${userId}`,
+    sk: `LEDGER#${createdAt}#${entryId}`,
+  }),
 };
 
 export const gsi1 = {
@@ -51,4 +55,5 @@ export const gsi1 = {
 export const prefix = {
   booking: 'BOOKING#',
   note: 'NOTE#',
+  ledger: 'LEDGER#',
 };
