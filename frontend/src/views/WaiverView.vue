@@ -26,6 +26,10 @@ const error = ref('');
 const redirect = computed(() =>
   Array.isArray(route.query.redirect) ? route.query.redirect[0] : route.query.redirect,
 );
+/** A class id to finish booking once the waiver is signed (set when arriving from a booking). */
+const pendingBook = computed(() =>
+  Array.isArray(route.query.book) ? route.query.book[0] : route.query.book,
+);
 const needsSignature = computed(() => !status.value || !status.value.upToDate);
 const outdated = computed(() => status.value?.signed && !status.value.upToDate);
 
@@ -60,7 +64,13 @@ async function sign() {
         photoRelease: photoRelease.value,
       })
     ).status;
-    if (redirect.value) router.push(redirect.value);
+    if (redirect.value) {
+      // Carry the pending booking back so the schedule can complete it automatically.
+      router.push({
+        path: redirect.value,
+        query: pendingBook.value ? { book: pendingBook.value } : {},
+      });
+    }
   } catch (e) {
     error.value = e instanceof ApiRequestError ? e.message : 'Could not record your signature.';
   } finally {
