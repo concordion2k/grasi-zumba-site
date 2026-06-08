@@ -2,13 +2,52 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types.js';
 import type { CrmCustomer, BookingWithClass } from '@grasi/shared';
 import { requireAdmin, currentUser } from '../middleware/auth.js';
-import { createClassSchema, createNoteSchema, updateSettingsSchema } from '../schemas.js';
+import {
+  createClassSchema,
+  updateClassSchema,
+  createNoteSchema,
+  updateSettingsSchema,
+} from '../schemas.js';
 import { listUsers, getUserById, toPublicUser } from '../domain/users.js';
-import { createClass, toZumbaClass, getClass } from '../domain/classes.js';
+import {
+  createClass,
+  updateClass,
+  cancelClass,
+  toZumbaClass,
+  getClass,
+  type ClassRecord,
+} from '../domain/classes.js';
 import { countUserBookings, listUserBookings, listRoster } from '../domain/bookings.js';
 import { createNote, listNotes, countNotes, deleteNote } from '../domain/notes.js';
 import { updateSettings } from '../domain/settings.js';
 import { notFound } from '../lib/errors.js';
+import { formatClassTime } from '../lib/datetime.js';
+import {
+  dispatchNewClass,
+  dispatchClassChanged,
+  dispatchClassCanceled,
+} from '../notifications/dispatch.js';
+import type { FieldChange } from '../notifications/events.js';
+
+/** Build the human-readable diff used in "your class changed" emails (only the fields a booked
+ *  attendee cares about: what it's called, when, and where). */
+function describeChanges(before: ClassRecord, after: ClassRecord): FieldChange[] {
+  const changes: FieldChange[] = [];
+  if (before.title !== after.title) {
+    changes.push({ label: 'Class', from: before.title, to: after.title });
+  }
+  if (before.startTime !== after.startTime || before.endTime !== after.endTime) {
+    changes.push({
+      label: 'Date & time',
+      from: formatClassTime(before.startTime, before.endTime),
+      to: formatClassTime(after.startTime, after.endTime),
+    });
+  }
+  if (before.location !== after.location) {
+    changes.push({ label: 'Location', from: before.location, to: after.location });
+  }
+  return changes;
+}
 
 /** Admin-only CRM + scheduling. Mounted under /admin. */
 export const adminRoutes = new Hono<AppEnv>();
@@ -89,7 +128,40 @@ adminRoutes.post('/classes', async (c) => {
   const admin = currentUser(c);
   const input = createClassSchema.parse(await c.req.json());
   const created = await createClass(input, admin.userId);
+  // Announce to opted-in users (fire-and-forget).
+  void dispatchNewClass(created).catch((err) => console.error('[notify] new class failed', err));
   return c.json({ class: toZumbaClass(created) }, 201);
+});
+
+adminRoutes.patch('/classes/:classId', async (c) => {
+  const classId = c.req.param('classId');
+  const patch = updateClassSchema.parse(await c.req.json());
+  const { before, after } = await updateClass(classId, patch);
+  // Notify booked attendees about meaningful changes (time/title/location).
+  const changes = describeChanges(before, after);
+  if (changes.length > 0) {
+    const roster = await listRoster(classId);
+    void dispatchClassChanged(
+      after,
+      changes,
+      roster.map((r) => r.userId),
+    ).catch((err) => console.error('[notify] class changed failed', err));
+  }
+  return c.json({ class: toZumbaClass(after) });
+});
+
+adminRoutes.delete('/classes/:classId', async (c) => {
+  const classId = c.req.param('classId');
+  const cls = await getClass(classId);
+  if (!cls) throw notFound('Class not found');
+  // Capture the roster before deletion so we can both clean up bookings and notify attendees.
+  const roster = await listRoster(classId);
+  const userIds = roster.map((r) => r.userId);
+  await cancelClass(classId, userIds);
+  void dispatchClassCanceled(toZumbaClass(cls), userIds).catch((err) =>
+    console.error('[notify] class canceled failed', err),
+  );
+  return c.json({ ok: true });
 });
 
 adminRoutes.get('/classes/:classId/roster', async (c) => {

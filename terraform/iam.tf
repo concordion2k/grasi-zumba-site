@@ -50,7 +50,7 @@ data "aws_iam_policy_document" "lambda_app" {
   statement {
     sid       = "PublishEmailEvents"
     effect    = "Allow"
-    actions   = ["sqs:SendMessage"]
+    actions   = ["sqs:SendMessage", "sqs:SendMessageBatch"]
     resources = [aws_sqs_queue.email.arn]
   }
 }

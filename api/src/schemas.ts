@@ -13,6 +13,7 @@ export const registerSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254),
   password: z.string().min(10, 'Use at least 10 characters').max(200),
   birthday: isoDate,
+  notifyNewClass: z.boolean().optional(),
 });
 
 export const loginSchema = z.object({
@@ -39,6 +40,20 @@ export const changePasswordSchema = z
     path: ['newPassword'],
   });
 
+export const notificationPrefsSchema = z
+  .object({
+    notifyNewClass: z.boolean().optional(),
+    notifyBookingConfirm: z.boolean().optional(),
+    notifyClassChange: z.boolean().optional(),
+  })
+  .refine((v) => Object.values(v).some((x) => x !== undefined), {
+    message: 'Nothing to update',
+  });
+
+export const unsubscribeSchema = z.object({
+  token: z.string().min(1).max(512),
+});
+
 export const updateSettingsSchema = z
   .object({
     bannerEnabled: z.boolean().optional(),
@@ -64,6 +79,19 @@ export const createClassSchema = z.object({
   location: z.string().trim().min(1).max(200),
   capacity: z.number().int().min(1).max(500),
 });
+
+export const updateClassSchema = z
+  .object({
+    title: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().max(2000).optional(),
+    startTime: isoDateTime.optional(),
+    durationMinutes: z.number().int().min(10).max(360).optional(),
+    location: z.string().trim().min(1).max(200).optional(),
+    capacity: z.number().int().min(1).max(500).optional(),
+  })
+  .refine((v) => Object.values(v).some((x) => x !== undefined), {
+    message: 'Nothing to update',
+  });
 
 export const createNoteSchema = z.object({
   body: z.string().trim().min(1, 'Note cannot be empty').max(5000),

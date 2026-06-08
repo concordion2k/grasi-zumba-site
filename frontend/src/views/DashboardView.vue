@@ -23,6 +23,34 @@ const savingProfile = ref(false);
 const uploadingAvatar = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 
+// Email notification preferences (auto-saved on toggle)
+type PrefKey = 'notifyNewClass' | 'notifyBookingConfirm' | 'notifyClassChange';
+const PREF_OPTIONS: { key: PrefKey; label: string; hint: string }[] = [
+  { key: 'notifyBookingConfirm', label: 'Booking confirmations', hint: 'When you book a class.' },
+  {
+    key: 'notifyClassChange',
+    label: 'Class updates',
+    hint: 'If a class you booked is changed or canceled.',
+  },
+  { key: 'notifyNewClass', label: 'New class announcements', hint: 'When a new class is added.' },
+];
+const savingPref = ref<PrefKey | null>(null);
+
+async function togglePref(key: PrefKey, e: Event) {
+  const value = (e.target as HTMLInputElement).checked;
+  savingPref.value = key;
+  error.value = '';
+  try {
+    const { user } = await meApi.updateNotifications({ [key]: value });
+    auth.setUser(user);
+  } catch (err) {
+    error.value = err instanceof ApiRequestError ? err.message : 'Could not save your preferences.';
+    (e.target as HTMLInputElement).checked = !value; // revert the visual on failure
+  } finally {
+    savingPref.value = null;
+  }
+}
+
 // Change password
 const currentPassword = ref('');
 const newPassword = ref('');
@@ -211,6 +239,29 @@ onMounted(load);
             </form>
           </aside>
 
+          <!-- Email preferences -->
+          <section class="card pref-card">
+            <h3>Email preferences</h3>
+            <p class="muted small intro">Choose which emails you'd like to receive.</p>
+            <ul class="pref-list">
+              <li v-for="opt in PREF_OPTIONS" :key="opt.key">
+                <label class="pref-toggle">
+                  <input
+                    type="checkbox"
+                    :checked="auth.user?.[opt.key] ?? false"
+                    :disabled="savingPref === opt.key"
+                    @change="togglePref(opt.key, $event)"
+                  />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span class="pref-text">
+                    <strong>{{ opt.label }}</strong>
+                    <span class="muted small block">{{ opt.hint }}</span>
+                  </span>
+                </label>
+              </li>
+            </ul>
+          </section>
+
           <!-- Change password -->
           <section class="card pw-card">
             <h3>Change password</h3>
@@ -311,6 +362,78 @@ onMounted(load);
 }
 .pw-card h3 {
   margin: 0 0 0.75rem;
+}
+
+/* Email preferences */
+.pref-card {
+  text-align: left;
+}
+.pref-card h3 {
+  margin: 0 0 0.25rem;
+}
+.pref-card .intro {
+  margin: 0 0 1rem;
+}
+.pref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.pref-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  cursor: pointer;
+  user-select: none;
+}
+.pref-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-track {
+  position: relative;
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  margin-top: 0.1rem;
+  border-radius: 999px;
+  background: var(--c-line);
+  transition: background 0.18s ease;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.18s ease;
+}
+.pref-toggle input:checked + .toggle-track {
+  background: var(--c-green);
+}
+.pref-toggle input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(20px);
+}
+.pref-toggle input:focus-visible + .toggle-track {
+  outline: 2px solid var(--c-pink);
+  outline-offset: 2px;
+}
+.pref-toggle input:disabled + .toggle-track {
+  opacity: 0.55;
+}
+.pref-text {
+  line-height: 1.35;
+}
+.block {
+  display: block;
 }
 .avatar-wrap {
   position: relative;

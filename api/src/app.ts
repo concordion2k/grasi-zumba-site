@@ -11,6 +11,7 @@ import { bookingRoutes, myBookingsRoutes } from './routes/bookings.js';
 import { profileRoutes } from './routes/profile.js';
 import { adminRoutes } from './routes/admin.js';
 import { contactRoutes } from './routes/contact.js';
+import { unsubscribeRoutes } from './routes/unsubscribe.js';
 import { getSettings } from './domain/settings.js';
 
 export function createApp() {
@@ -37,6 +38,7 @@ export function createApp() {
 
   app.route('/api/auth', authRoutes);
   app.route('/api/contact', contactRoutes);
+  app.route('/api/unsubscribe', unsubscribeRoutes);
   app.route('/api/classes', classRoutes); // public list/get
   app.route('/api/classes', bookingRoutes); // book/cancel (auth)
   app.route('/api/me', myBookingsRoutes);
