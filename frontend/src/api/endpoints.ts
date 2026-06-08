@@ -26,6 +26,7 @@ import type {
   CustomerOverview,
   BillingSummary,
   LedgerEntry,
+  MyBillingResponse,
 } from '@grasi/shared';
 import { api, uploadToS3 } from './client.js';
 
@@ -64,6 +65,7 @@ export const classesApi = {
 
 export const meApi = {
   bookings: () => api.get<{ bookings: BookingWithClass[] }>('/me/bookings'),
+  billing: () => api.get<MyBillingResponse>('/me/billing'),
   updateProfile: (body: UpdateProfileRequest) => api.patch<AuthResponse>('/me', body),
   updateNotifications: (body: UpdateNotificationPrefsRequest) =>
     api.patch<AuthResponse>('/me/notifications', body),

@@ -184,6 +184,7 @@ const LEDGER_LABELS: Record<LedgerEntryType, string> = {
   dropin_payment: 'Drop-in',
   subscription: 'Subscription',
   adjustment: 'Adjustment',
+  class_booking: 'Class booking',
 };
 
 // Transaction history: 10 most recent, paginate from there (the ledger is already loaded in full).

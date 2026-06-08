@@ -5,6 +5,7 @@ import { requireAuth, currentUser } from '../middleware/auth.js';
 import { bookClass, cancelBooking, listUserBookings } from '../domain/bookings.js';
 import { getClass, toZumbaClass } from '../domain/classes.js';
 import { hasSignedCurrentWaiver } from '../domain/waiver.js';
+import { consumeBookingCredit, bookingUsedCredit, refundBookingCredit } from '../domain/billing.js';
 import { dispatchBookingConfirmed } from '../notifications/dispatch.js';
 import { HttpError } from '../lib/errors.js';
 
@@ -22,15 +23,32 @@ bookingRoutes.post('/:classId/book', async (c) => {
     });
   }
   await bookClass({ userId: user.userId, name: user.name, email: user.email }, classId);
-  // Confirmation email (fire-and-forget, honours the user's preference).
   const cls = await getClass(classId);
-  if (cls) dispatchBookingConfirmed(user, cls);
+  if (cls) {
+    // Confirmation email (fire-and-forget, honours the user's preference).
+    dispatchBookingConfirmed(user, cls);
+    // Spend a class credit (best-effort; subscribers/credit-less customers are no-ops).
+    await consumeBookingCredit(user, classId, cls.title).catch((err) =>
+      console.error('[billing] consume credit failed', err),
+    );
+  }
   return c.json({ ok: true }, 201);
 });
 
 bookingRoutes.delete('/:classId/book', async (c) => {
   const user = currentUser(c);
-  await cancelBooking(user.userId, c.req.param('classId'));
+  const classId = c.req.param('classId');
+  // Read the credit flag + class title before cancelling (cancel deletes the booking item).
+  const [usedCredit, cls] = await Promise.all([
+    bookingUsedCredit(user.userId, classId),
+    getClass(classId),
+  ]);
+  await cancelBooking(user.userId, classId);
+  if (usedCredit) {
+    await refundBookingCredit(user.userId, cls?.title ?? 'class').catch((err) =>
+      console.error('[billing] refund credit failed', err),
+    );
+  }
   return c.json({ ok: true });
 });
 

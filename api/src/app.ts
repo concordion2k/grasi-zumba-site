@@ -13,6 +13,7 @@ import { adminRoutes } from './routes/admin.js';
 import { contactRoutes } from './routes/contact.js';
 import { unsubscribeRoutes } from './routes/unsubscribe.js';
 import { waiverPublicRoutes, waiverMeRoutes } from './routes/waiver.js';
+import { meBillingRoutes } from './routes/billing.js';
 import { getSettings } from './domain/settings.js';
 
 export function createApp() {
@@ -46,6 +47,7 @@ export function createApp() {
   app.route('/api/classes', bookingRoutes); // book/cancel (auth)
   app.route('/api/me', myBookingsRoutes);
   app.route('/api/me', profileRoutes);
+  app.route('/api/me/billing', meBillingRoutes);
   app.route('/api/admin', adminRoutes);
 
   app.notFound((c) => c.json({ error: 'Not found' }, 404));
