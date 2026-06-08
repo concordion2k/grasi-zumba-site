@@ -17,8 +17,13 @@ import type {
   AllowedImageType,
   SiteSettings,
   UpdateSettingsRequest,
+  ContactRequest,
 } from '@grasi/shared';
 import { api, uploadToS3 } from './client.js';
+
+export const contactApi = {
+  send: (body: ContactRequest) => api.post<{ ok: true }>('/contact', body),
+};
 
 export const authApi = {
   me: () => api.get<AuthResponse | null>('/auth/me', { throwOnUnauthorized: false }),

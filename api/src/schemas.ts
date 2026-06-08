@@ -48,6 +48,14 @@ export const updateSettingsSchema = z
     message: 'Nothing to update',
   });
 
+export const contactSchema = z.object({
+  name: z.string().trim().min(1, 'Please enter your name').max(100),
+  email: z.string().trim().toLowerCase().email().max(254),
+  message: z.string().trim().min(1, 'Please enter a message').max(4000),
+  // Honeypot: real users never see/fill this; bots often do. Handled in the route.
+  company: z.string().max(200).optional(),
+});
+
 export const createClassSchema = z.object({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(2000).default(''),

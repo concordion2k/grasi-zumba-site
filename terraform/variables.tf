@@ -38,6 +38,12 @@ variable "email_from" {
   description = "From header for outbound email (must be on the SES-verified domain)."
 }
 
+variable "contact_to" {
+  type        = string
+  default     = "grasi@zumbabygrasiele.com"
+  description = "Where contact-form inquiries are delivered."
+}
+
 variable "frontend_origin" {
   type        = string
   default     = "https://localhost"
