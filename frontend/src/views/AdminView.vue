@@ -168,15 +168,49 @@ const loadingDetail = ref(false);
 const noteDraft = ref('');
 const savingNote = ref(false);
 
+// Search + pagination
+const customerSearch = ref('');
+const customerPage = ref(1);
+const customerTotal = ref(0);
+const customerTotalPages = ref(1);
+/** True once the first customer load has resolved — drives "initial spinner" vs "inline reload". */
+const customersLoadedOnce = ref(false);
+const PAGE_SIZE = 20;
+let searchDebounce: ReturnType<typeof setTimeout> | undefined;
+
 async function loadCustomers() {
   loadingCustomers.value = true;
   try {
-    customers.value = (await adminApi.customers()).customers;
+    const res = await adminApi.customers({
+      search: customerSearch.value.trim() || undefined,
+      page: customerPage.value,
+      pageSize: PAGE_SIZE,
+    });
+    customers.value = res.customers;
+    customerTotal.value = res.total;
+    customerTotalPages.value = res.totalPages;
+    customerPage.value = res.page; // server clamps to the valid range
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Could not load customers.';
   } finally {
     loadingCustomers.value = false;
+    customersLoadedOnce.value = true;
   }
+}
+
+/** Debounced search — reset to page 1 and reload shortly after typing stops. */
+function onSearchInput() {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    customerPage.value = 1;
+    loadCustomers();
+  }, 300);
+}
+
+function goToPage(p: number) {
+  if (p < 1 || p > customerTotalPages.value || p === customerPage.value) return;
+  customerPage.value = p;
+  loadCustomers();
 }
 
 async function openCustomer(id: string) {
@@ -366,36 +400,79 @@ onMounted(loadClasses); // schedule is the default tab
       <!-- Customers / CRM -->
       <section v-else-if="tab === 'customers'" class="crm">
         <div class="crm-list card">
-          <div v-if="loadingCustomers" class="spinner"></div>
-          <p v-else-if="customers.length === 0" class="muted">No customers yet.</p>
-          <ul v-else class="cust-list">
-            <li
-              v-for="c in customers"
-              :key="c.userId"
-              :class="{ active: selected?.user.userId === c.userId }"
-              @click="openCustomer(c.userId)"
-            >
-              <div class="cust-mini">
-                <img
-                  v-if="c.profilePictureUrl"
-                  :src="c.profilePictureUrl"
-                  class="mini-avatar"
-                  alt=""
-                />
-                <span v-else class="mini-avatar mini-fallback">{{ c.name[0] }}</span>
-                <div>
-                  <strong>{{ c.name }}</strong>
-                  <span class="muted small block">{{ c.email }}</span>
-                </div>
+          <div class="cust-search">
+            <input
+              v-model="customerSearch"
+              type="search"
+              placeholder="🔎 Search by name or email…"
+              @input="onSearchInput"
+            />
+          </div>
+
+          <!-- First load: a single spinner. After that, keep results in place and overlay a
+               scoped veil so searching/paging doesn't tear down (and reflow) the whole list. -->
+          <div v-if="loadingCustomers && !customersLoadedOnce" class="spinner"></div>
+
+          <div v-else class="cust-results" :class="{ 'is-loading': loadingCustomers }">
+            <div v-if="loadingCustomers" class="list-veil" aria-hidden="true">
+              <span class="veil-spinner"></span>
+            </div>
+
+            <p v-if="customers.length === 0" class="muted cust-empty">
+              {{ customerSearch.trim() ? 'No customers match your search.' : 'No customers yet.' }}
+            </p>
+            <template v-else>
+              <ul class="cust-list">
+                <li
+                  v-for="c in customers"
+                  :key="c.userId"
+                  :class="{ active: selected?.user.userId === c.userId }"
+                  @click="openCustomer(c.userId)"
+                >
+                  <div class="cust-mini">
+                    <img
+                      v-if="c.profilePictureUrl"
+                      :src="c.profilePictureUrl"
+                      class="mini-avatar"
+                      alt=""
+                    />
+                    <span v-else class="mini-avatar mini-fallback">{{ c.name[0] }}</span>
+                    <div>
+                      <strong>{{ c.name }}</strong>
+                      <span class="muted small block">{{ c.email }}</span>
+                    </div>
+                  </div>
+                  <div class="cust-counts">
+                    <span class="pill pill-pink stat" :title="`${c.bookingCount} bookings`">
+                      📅 {{ c.bookingCount }}
+                    </span>
+                    <span class="pill stat" :title="`${c.noteCount} notes`"
+                      >📝 {{ c.noteCount }}</span
+                    >
+                  </div>
+                </li>
+              </ul>
+
+              <div v-if="customerTotalPages > 1" class="pager">
+                <button
+                  class="btn btn-ghost btn-sm"
+                  :disabled="customerPage <= 1"
+                  @click="goToPage(customerPage - 1)"
+                >
+                  ← Prev
+                </button>
+                <span class="pager-info">Page {{ customerPage }} of {{ customerTotalPages }}</span>
+                <button
+                  class="btn btn-ghost btn-sm"
+                  :disabled="customerPage >= customerTotalPages"
+                  @click="goToPage(customerPage + 1)"
+                >
+                  Next →
+                </button>
               </div>
-              <div class="cust-counts">
-                <span class="pill pill-pink stat" :title="`${c.bookingCount} bookings`">
-                  📅 {{ c.bookingCount }}
-                </span>
-                <span class="pill stat" :title="`${c.noteCount} notes`">📝 {{ c.noteCount }}</span>
-              </div>
-            </li>
-          </ul>
+              <p class="muted small cust-total">{{ customerTotal }} total</p>
+            </template>
+          </div>
         </div>
 
         <div class="crm-detail card">
@@ -523,6 +600,9 @@ onMounted(loadClasses); // schedule is the default tab
   margin: 1.5rem 0;
 }
 .tabs button {
+  /* Reset native button chrome so the platform doesn't draw its own (square) button bezel. */
+  appearance: none;
+  -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -534,25 +614,27 @@ onMounted(loadClasses); // schedule is the default tab
   font-size: 0.95rem;
   color: var(--c-ink);
   background: #fff;
-  border: 2px solid var(--c-line);
+  /* No real border: a (transparent) border + border-radius lets the square-cornered background/
+     gradient fill show past the rounded edge. The outline is an inset box-shadow instead, which
+     always follows border-radius, so corners stay clean. */
+  border: none;
+  box-shadow: inset 0 0 0 2px var(--c-line);
   padding: 0 1.15rem;
   border-radius: 999px;
   cursor: pointer;
   transition:
     color 0.15s ease,
-    border-color 0.15s ease,
     box-shadow 0.15s ease,
     transform 0.15s ease;
 }
 .tabs button:hover:not(.active) {
-  border-color: var(--c-pink);
+  box-shadow: inset 0 0 0 2px var(--c-pink);
   color: var(--c-pink-dark);
   transform: translateY(-1px);
 }
 .tabs button.active {
   background: var(--grad-samba);
   color: #fff;
-  border-color: transparent;
   box-shadow: var(--shadow-sm);
 }
 .form-card {
@@ -686,6 +768,71 @@ onMounted(loadClasses); // schedule is the default tab
 .crm-list,
 .crm-detail {
   min-width: 0;
+}
+.cust-search {
+  margin-bottom: 0.75rem;
+}
+.cust-search input {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border: 2px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+}
+.cust-search input:focus-visible {
+  outline: 2px solid var(--c-pink);
+  outline-offset: 1px;
+}
+.cust-empty {
+  padding: 1rem 0;
+}
+/* Keep the list mounted during a search/page reload; dim it and float a small spinner over it so
+   the panel doesn't collapse and flicker. */
+.cust-results {
+  position: relative;
+  min-height: 60px;
+}
+.cust-results.is-loading .cust-list,
+.cust-results.is-loading .pager,
+.cust-results.is-loading .cust-empty,
+.cust-results.is-loading .cust-total {
+  opacity: 0.4;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.list-veil {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+.veil-spinner {
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 3px solid rgba(255, 46, 99, 0.25);
+  border-top-color: var(--c-pink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--c-line);
+}
+.pager-info {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--c-ink-soft);
+}
+.cust-total {
+  text-align: center;
+  margin: 0.5rem 0 0;
 }
 .cust-list {
   list-style: none;
