@@ -82,10 +82,12 @@ data "aws_iam_policy_document" "worker" {
   }
 
   statement {
-    sid       = "SendEmail"
-    effect    = "Allow"
-    actions   = ["ses:SendEmail"]
-    resources = ["*"] # SES SendEmail is gated by the verified From identity, not resource ARN
+    sid    = "SendEmail"
+    effect = "Allow"
+    # SendRawEmail is required for emails with attachments (calendar invites) — SESv2's raw/MIME
+    # path maps to the legacy SendRawEmail IAM action.
+    actions   = ["ses:SendEmail", "ses:SendRawEmail"]
+    resources = ["*"] # gated by the verified From identity, not resource ARN
   }
 
   statement {
