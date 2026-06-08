@@ -1,20 +1,34 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import type { BookingWithClass, ZumbaClassWithBookingState, WaiverStatus } from '@grasi/shared';
-import { ALLOWED_IMAGE_TYPES, PROFILE_PICTURE_MAX_BYTES } from '@grasi/shared';
+import type {
+  BookingWithClass,
+  WaiverStatus,
+  MyBillingResponse,
+  LedgerEntryType,
+} from '@grasi/shared';
+import { ALLOWED_IMAGE_TYPES, PROFILE_PICTURE_MAX_BYTES, formatUsd } from '@grasi/shared';
 import { meApi, classesApi, waiverApi } from '@/api/endpoints';
 import { ApiRequestError } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
-import ClassCard from '@/components/ClassCard.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
-import { isPast, formatRange } from '@/utils/format';
+import { isPast, formatRange, formatDate } from '@/utils/format';
 import { resizeImageToLimit } from '@/utils/image';
 
 const auth = useAuthStore();
 const bookings = ref<BookingWithClass[]>([]);
 const waiver = ref<WaiverStatus | null>(null);
+const billing = ref<MyBillingResponse | null>(null);
 const loading = ref(true);
 const error = ref('');
+
+const PURCHASE_LABELS: Record<LedgerEntryType, string> = {
+  manual_credit: 'Credit added',
+  package_purchase: 'Class pack',
+  dropin_payment: 'Drop-in class',
+  subscription: 'Unlimited subscription',
+  adjustment: 'Adjustment',
+  class_booking: 'Class booking',
+};
 const notice = ref('');
 const busyId = ref<string | null>(null);
 
@@ -73,22 +87,14 @@ const initials = computed(() =>
     .toUpperCase(),
 );
 
-/** Adapt a booked class to the shape ClassCard expects. */
-function toCardClass(b: BookingWithClass): ZumbaClassWithBookingState {
-  return {
-    ...b.class,
-    bookedByMe: true,
-    spotsRemaining: Math.max(0, b.class.capacity - b.class.bookedCount),
-  };
-}
-
 async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [b, w] = await Promise.all([meApi.bookings(), waiverApi.status()]);
+    const [b, w, bill] = await Promise.all([meApi.bookings(), waiverApi.status(), meApi.billing()]);
     bookings.value = b.bookings;
     waiver.value = w.status;
+    billing.value = bill;
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Could not load your classes.';
   } finally {
@@ -216,6 +222,116 @@ onMounted(load);
       <div v-if="notice" class="alert alert-success">{{ notice }}</div>
 
       <div class="dash-grid">
+        <div class="main-col">
+          <!-- Membership & credits -->
+          <section v-if="billing" class="card membership">
+            <div class="mem-grid">
+              <div class="mem-summary">
+                <div class="mem-credits">
+                  <template v-if="billing.summary.subscription?.active">
+                    <span class="credits-num">✨</span>
+                    <span class="credits-label">Unlimited</span>
+                  </template>
+                  <template v-else>
+                    <span class="credits-num">{{ billing.summary.classesRemaining }}</span>
+                    <span class="credits-label">classes left</span>
+                  </template>
+                </div>
+                <ul class="mem-stats">
+                  <li>
+                    <span class="ms-val">{{ billing.summary.classesPurchased }}</span>
+                    <span class="ms-lbl">Purchased</span>
+                  </li>
+                  <li>
+                    <span class="ms-val">{{ billing.summary.classesBooked }}</span>
+                    <span class="ms-lbl">Booked</span>
+                  </li>
+                  <li>
+                    <span class="ms-val">
+                      <span v-if="billing.summary.subscription?.active" class="pill pill-green"
+                        >Unlimited</span
+                      >
+                      <span v-else class="muted">None</span>
+                    </span>
+                    <span class="ms-lbl">Plan</span>
+                  </li>
+                </ul>
+                <p v-if="billing.summary.subscription?.active" class="muted small renews">
+                  Renews {{ new Date(billing.summary.subscription.renewsAt).toLocaleDateString() }}
+                </p>
+              </div>
+
+              <div class="mem-history">
+                <h4 class="ph-title">Recent purchases</h4>
+                <p v-if="billing.purchases.length === 0" class="muted small">No purchases yet.</p>
+                <template v-else>
+                  <ul class="purchase-list">
+                    <li v-for="p in billing.purchases.slice(0, 3)" :key="p.entryId">
+                      <div class="ph-row">
+                        <span>{{ PURCHASE_LABELS[p.type] }}</span>
+                        <strong>{{ formatUsd(p.amountCents) }}</strong>
+                      </div>
+                      <span class="muted small">{{ formatDate(p.createdAt) }}</span>
+                    </li>
+                  </ul>
+                  <RouterLink to="/account/purchases" class="view-all">
+                    View all purchases →
+                  </RouterLink>
+                </template>
+              </div>
+            </div>
+          </section>
+
+          <!-- Upcoming classes -->
+          <section class="bookings card">
+            <div v-if="loading" class="spinner"></div>
+            <template v-else>
+              <div class="bookings-head">
+                <h2>Your upcoming classes</h2>
+                <RouterLink to="/schedule" class="btn btn-primary btn-sm"
+                  >+ Book a class</RouterLink
+                >
+              </div>
+              <p v-if="upcoming.length === 0" class="muted">
+                No classes booked yet —
+                <RouterLink to="/schedule">find one on the schedule!</RouterLink>
+              </p>
+              <ul v-else class="booking-rows">
+                <li v-for="b in upcoming" :key="b.class.classId" class="booking-row">
+                  <div class="br-main">
+                    <strong>{{ b.class.title }}</strong>
+                    <span class="muted small block"
+                      >🗓️ {{ formatRange(b.class.startTime, b.class.endTime) }}</span
+                    >
+                    <span class="muted small block">📍 {{ b.class.location }}</span>
+                  </div>
+                  <button
+                    class="btn btn-danger btn-sm"
+                    :disabled="busyId === b.class.classId"
+                    @click="requestCancel(b.class.classId)"
+                  >
+                    {{ busyId === b.class.classId ? '…' : 'Cancel' }}
+                  </button>
+                </li>
+              </ul>
+
+              <template v-if="past.length">
+                <h2 class="past-title">Past classes</h2>
+                <ul class="booking-rows past">
+                  <li v-for="b in past" :key="b.class.classId" class="booking-row">
+                    <div class="br-main">
+                      <strong>{{ b.class.title }}</strong>
+                      <span class="muted small block"
+                        >🗓️ {{ formatRange(b.class.startTime, b.class.endTime) }}</span
+                      >
+                    </div>
+                  </li>
+                </ul>
+              </template>
+            </template>
+          </section>
+        </div>
+
         <div class="profile-col">
           <!-- Profile -->
           <aside class="card profile">
@@ -355,35 +471,6 @@ onMounted(load);
             </form>
           </section>
         </div>
-
-        <!-- Bookings -->
-        <section class="bookings">
-          <div v-if="loading" class="spinner"></div>
-          <template v-else>
-            <h2>Your upcoming classes</h2>
-            <p v-if="upcoming.length === 0" class="muted">
-              No classes booked yet —
-              <RouterLink to="/schedule">find one on the schedule!</RouterLink>
-            </p>
-            <div class="grid cards">
-              <ClassCard
-                v-for="b in upcoming"
-                :key="b.class.classId"
-                :cls="toCardClass(b)"
-                :busy="busyId === b.class.classId"
-                can-book
-                @cancel="requestCancel"
-              />
-            </div>
-
-            <template v-if="past.length">
-              <h2 class="past-title">Past classes</h2>
-              <div class="grid cards">
-                <ClassCard v-for="b in past" :key="b.class.classId" :cls="toCardClass(b)" />
-              </div>
-            </template>
-          </template>
-        </section>
       </div>
     </div>
 
@@ -408,11 +495,13 @@ onMounted(load);
 <style scoped>
 .dash-grid {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 1.5rem;
   margin-top: 1.5rem;
   align-items: start;
 }
+/* Left: membership then upcoming classes (stacked). Right: account settings sidebar. */
+.main-col,
 .profile-col {
   display: flex;
   flex-direction: column;
@@ -427,6 +516,101 @@ onMounted(load);
 }
 .pw-card h3 {
   margin: 0 0 0.75rem;
+}
+
+/* Membership & credits */
+.mem-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.mem-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.mem-credits {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.credits-num {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--c-pink-dark);
+}
+.credits-label {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--c-ink-soft);
+}
+.mem-stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 1.75rem;
+}
+.mem-stats li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.ms-val {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.3rem;
+  line-height: 1.1;
+}
+.ms-lbl {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--c-ink-soft);
+}
+.renews {
+  margin: 0;
+}
+.mem-history {
+  border-left: 1px solid var(--c-line);
+  padding-left: 1.5rem;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.ph-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+.purchase-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.purchase-list li {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--c-line);
+}
+.purchase-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.ph-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.view-all {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--c-pink-dark);
 }
 
 /* Liability waiver */
@@ -555,8 +739,46 @@ onMounted(load);
 .small {
   font-size: 0.85rem;
 }
-.cards {
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+/* Bookings as a compact list */
+.bookings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.bookings-head h2 {
+  margin: 0;
+}
+.booking-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.booking-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+}
+.br-main {
+  min-width: 0;
+}
+.br-main strong {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+.booking-rows.past {
+  margin-top: 0.75rem;
+}
+.booking-rows.past .booking-row {
+  opacity: 0.7;
 }
 .past-title {
   margin-top: 2rem;
@@ -566,6 +788,16 @@ onMounted(load);
 @media (max-width: 820px) {
   .dash-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .mem-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mem-history {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--c-line);
+    padding-top: 1rem;
+    max-height: none;
   }
 }
 </style>

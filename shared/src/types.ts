@@ -214,7 +214,8 @@ export type LedgerEntryType =
   | 'package_purchase' // bought a class pack (credits + payment)
   | 'dropin_payment' // paid for a single drop-in class (payment, no credit change)
   | 'subscription' // subscription started/charged
-  | 'adjustment'; // admin removed/corrected credits
+  | 'adjustment' // admin removed/corrected credits
+  | 'class_booking'; // a credit spent on a booking (-1), or refunded on cancel (+1)
 
 /** One append-only billing event. The ledger is the customer's purchase/credit history. */
 export interface LedgerEntry {
@@ -261,6 +262,23 @@ export interface CustomerOverview {
   waiver: WaiverStatus;
   billing: BillingSummary;
   ledger: LedgerEntry[];
+}
+
+/** The customer's own billing view: credits, usage, and payment history. */
+export interface MyBillingSummary {
+  /** Lifetime class credits acquired (purchased packs + any granted). */
+  classesPurchased: number;
+  /** Classes remaining = credits on file minus classes booked (0 floor). Subscribers don't draw down. */
+  classesRemaining: number;
+  /** How many classes the customer has booked (what "remaining" is based on). */
+  classesBooked: number;
+  subscription: SubscriptionStatus | null;
+}
+
+export interface MyBillingResponse {
+  summary: MyBillingSummary;
+  /** The customer's payment history (drop-ins, pack purchases, subscription charges). */
+  purchases: LedgerEntry[];
 }
 
 /** Admin billing actions. */
