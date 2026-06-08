@@ -54,6 +54,17 @@ export const unsubscribeSchema = z.object({
   token: z.string().min(1).max(512),
 });
 
+export const signWaiverSchema = z.object({
+  fullName: z.string().trim().min(2, 'Please type your full legal name').max(120),
+  agreeLiability: z.literal(true, {
+    errorMap: () => ({ message: 'You must agree to the waiver to continue' }),
+  }),
+  consentElectronic: z.literal(true, {
+    errorMap: () => ({ message: 'You must consent to signing electronically' }),
+  }),
+  photoRelease: z.boolean().optional(),
+});
+
 export const updateSettingsSchema = z
   .object({
     bannerEnabled: z.boolean().optional(),

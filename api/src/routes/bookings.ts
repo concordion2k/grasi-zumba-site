@@ -4,7 +4,9 @@ import type { BookingWithClass } from '@grasi/shared';
 import { requireAuth, currentUser } from '../middleware/auth.js';
 import { bookClass, cancelBooking, listUserBookings } from '../domain/bookings.js';
 import { getClass, toZumbaClass } from '../domain/classes.js';
+import { hasSignedCurrentWaiver } from '../domain/waiver.js';
 import { dispatchBookingConfirmed } from '../notifications/dispatch.js';
+import { HttpError } from '../lib/errors.js';
 
 /** Booking actions, mounted under /classes. All require authentication. */
 export const bookingRoutes = new Hono<AppEnv>();
@@ -13,6 +15,12 @@ bookingRoutes.use('*', requireAuth);
 bookingRoutes.post('/:classId/book', async (c) => {
   const user = currentUser(c);
   const classId = c.req.param('classId');
+  // Gate: a signed, current-version liability waiver is required before booking.
+  if (!(await hasSignedCurrentWaiver(user.userId))) {
+    throw new HttpError(403, 'Please sign the liability waiver before booking a class.', {
+      code: 'waiver_required',
+    });
+  }
   await bookClass({ userId: user.userId, name: user.name, email: user.email }, classId);
   // Confirmation email (fire-and-forget, honours the user's preference).
   const cls = await getClass(classId);

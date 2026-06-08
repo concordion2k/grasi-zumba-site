@@ -6,6 +6,7 @@ import type {
   PublicUser,
   BookingWithClass,
   ZumbaClassWithBookingState,
+  WaiverStatus,
 } from '@grasi/shared';
 import { DEFAULT_BANNER_MESSAGE } from '@grasi/shared';
 import { adminApi, classesApi } from '@/api/endpoints';
@@ -157,9 +158,12 @@ async function removeClass(cls: ZumbaClassWithBookingState) {
 // --- Customers (CRM) --------------------------------------------------------
 const customers = ref<CrmCustomer[]>([]);
 const loadingCustomers = ref(false);
-const selected = ref<{ user: PublicUser; notes: CrmNote[]; bookings: BookingWithClass[] } | null>(
-  null,
-);
+const selected = ref<{
+  user: PublicUser;
+  notes: CrmNote[];
+  bookings: BookingWithClass[];
+  waiver: WaiverStatus;
+} | null>(null);
 const loadingDetail = ref(false);
 const noteDraft = ref('');
 const savingNote = ref(false);
@@ -405,6 +409,22 @@ onMounted(loadClasses); // schedule is the default tab
             <p class="muted">
               {{ selected.user.email }} · 🎂 {{ formatBirthday(selected.user.birthday) }} · joined
               {{ formatDate(selected.user.createdAt) }}
+            </p>
+
+            <p class="waiver-line">
+              <strong>Waiver:</strong>
+              <template v-if="selected.waiver.upToDate">
+                <span class="pill pill-green">Signed</span>
+                {{ selected.waiver.signedAt ? formatDate(selected.waiver.signedAt) : '' }}
+                <a
+                  :href="adminApi.waiverPdfUrl(selected.user.userId)"
+                  target="_blank"
+                  rel="noopener"
+                  >download PDF</a
+                >
+              </template>
+              <span v-else-if="selected.waiver.signed" class="pill">Outdated — needs re-sign</span>
+              <span v-else class="pill">Not signed</span>
             </p>
 
             <h3>Bookings</h3>
@@ -747,6 +767,13 @@ onMounted(loadClasses); // schedule is the default tab
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+.waiver-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.25rem 0 1rem;
 }
 .booking-list,
 .note-list {

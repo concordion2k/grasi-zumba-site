@@ -95,6 +95,30 @@ export function welcomeEmail(name: string): OutgoingEmail {
   return { to: '', subject, text, html };
 }
 
+/** Confirmation that a user signed the liability waiver (with a link to their copy). */
+export function waiverSignedEmail(
+  to: { email: string; name: string },
+  signedAt: string,
+  version: string,
+): OutgoingEmail {
+  const site = env.frontendOrigin;
+  const when = new Date(signedAt).toISOString().slice(0, 10);
+  const subject = 'Your signed liability waiver';
+  const text =
+    `Hi ${to.name},\n\n` +
+    `Thanks for signing the Zumba by Grasiele liability waiver on ${when} (version ${version}).\n\n` +
+    `You can view or download your signed copy anytime from your dashboard:\n${site}/dashboard\n\n` +
+    `Vem dançar!\nGrasi`;
+  const html = shell(
+    `Waiver signed ✅`,
+    `<p style="line-height:1.6">Hi ${esc(to.name)}, thanks for signing the liability waiver on
+     <strong>${esc(when)}</strong> (version ${esc(version)}).</p>
+     <p>${button(`${site}/dashboard`, 'View your signed copy →')}</p>
+     <p style="margin-top:16px">Vem dançar!<br/>Grasi</p>`,
+  );
+  return { to: to.email, subject, text, html };
+}
+
 /** Confirmation after a user books a class. */
 export function bookingConfirmedEmail(to: EmailRecipient, cls: ClassSummary): OutgoingEmail {
   const site = env.frontendOrigin;

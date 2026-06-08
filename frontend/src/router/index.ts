@@ -19,6 +19,7 @@ const router = createRouter({
       name: 'payment-coming-soon',
       component: () => import('@/views/PaymentComingSoonView.vue'),
     },
+    { path: '/waiver', name: 'waiver', component: () => import('@/views/WaiverView.vue') },
     { path: '/terms', name: 'terms', component: () => import('@/views/TermsView.vue') },
     { path: '/privacy', name: 'privacy', component: () => import('@/views/PrivacyView.vue') },
     {

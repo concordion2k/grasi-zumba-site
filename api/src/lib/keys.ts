@@ -35,6 +35,7 @@ export const key = {
   }),
   session: (tokenHash: string) => ({ pk: `SESSION#${tokenHash}`, sk: 'SESSION' }),
   siteSettings: () => ({ pk: 'SETTINGS', sk: 'SITE' }),
+  waiver: (userId: string) => ({ pk: `USER#${userId}`, sk: 'WAIVER' }),
 };
 
 export const gsi1 = {

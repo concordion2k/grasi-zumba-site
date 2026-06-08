@@ -1,7 +1,7 @@
 # TODOs — decisions & placeholders to fill in
 
 A running list of things we still need to **decide**, **fill in**, or **build** before (and after)
-launch. Last updated: **2026-06-07**.
+launch. Last updated: **2026-06-08**.
 
 Legend: 🔴 blocker for launch · 🟡 important · 🟢 nice-to-have / later
 
@@ -109,6 +109,28 @@ Both legal pages are **boilerplate, not legal advice** — have a professional r
 - [ ] **Logo & favicon** (currently emoji-based placeholders).
 - [ ] **Contact** details / a contact page (none yet).
 - [ ] **Social media** links in the footer.
+
+---
+
+## 9. Liability waiver 🔴/🟡 (built on `feature/liability-waiver`)
+
+In-house digital waiver: read + e-sign (ESIGN/UETA), immutable signed record, downloadable PDF
+(blank + signed), booking gated on a signed current-version waiver. Text lives in
+[`shared/src/index.ts`](shared/src/index.ts) (`WAIVER_DOCUMENT`) — single source for the page and
+both PDFs. Decisions locked in: **Florida**, **adults-only**, **required before first booking**.
+
+- [ ] 🔴 **Get the waiver text reviewed & finalized by a Florida attorney** — current copy is a
+      placeholder draft (assumption of risk / fitness rep / release / indemnification / photo release).
+- [ ] 🔴 **Remove the "WORK IN PROGRESS — FOR TESTING ONLY" notice** (`WAIVER_DOCUMENT.notice` in
+      `shared/src/index.ts`) once the text is finalized.
+- [ ] 🟡 **Bump `WAIVER_VERSION`** (same file) when the final text lands, so everyone re-signs the
+      finalized version (it's intentionally left at `2026-06-08` during testing).
+- [x] Owner's full legal name **Grasiele de Souza**, **sole proprietor**, business **Zumba by
+      Grasiele** — reflected in the intro + release clause.
+- [ ] 🟢 **Minor / parent-guardian flow** — not built (adults-only by decision). Add a guardian
+      signature path + wording if under-18 students are ever allowed.
+- [ ] 🟢 Confirm the signed-copy timezone via **`DISPLAY_TIMEZONE`** (defaults to Eastern, correct
+      for Florida).
 
 ---
 

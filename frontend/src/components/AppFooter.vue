@@ -14,6 +14,7 @@ const year = new Date().getFullYear();
         <RouterLink to="/schedule">Schedule</RouterLink>
         <RouterLink to="/pricing">Pricing</RouterLink>
         <RouterLink to="/contact">Contact</RouterLink>
+        <RouterLink to="/waiver">Liability Waiver</RouterLink>
         <RouterLink to="/terms">Terms &amp; Conditions</RouterLink>
         <RouterLink to="/privacy">Privacy Policy</RouterLink>
       </nav>

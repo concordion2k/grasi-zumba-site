@@ -21,11 +21,21 @@ import type {
   ContactRequest,
   UpdateNotificationPrefsRequest,
   UnsubscribeResponse,
+  WaiverStatus,
+  SignWaiverRequest,
 } from '@grasi/shared';
 import { api, uploadToS3 } from './client.js';
 
 export const contactApi = {
   send: (body: ContactRequest) => api.post<{ ok: true }>('/contact', body),
+};
+
+export const waiverApi = {
+  status: () => api.get<{ status: WaiverStatus }>('/me/waiver'),
+  sign: (body: SignWaiverRequest) => api.post<{ status: WaiverStatus }>('/me/waiver', body),
+  /** Direct links (cookie auth) — usable as anchor hrefs to view/download the PDFs. */
+  blankPdfUrl: '/api/waiver/pdf',
+  myPdfUrl: '/api/me/waiver/pdf',
 };
 
 export const unsubscribeApi = {
@@ -71,9 +81,13 @@ export const settingsApi = {
 export const adminApi = {
   customers: () => api.get<{ customers: CrmCustomer[] }>('/admin/customers'),
   customer: (id: string) =>
-    api.get<{ user: PublicUser; notes: CrmNote[]; bookings: BookingWithClass[] }>(
-      `/admin/customers/${id}`,
-    ),
+    api.get<{
+      user: PublicUser;
+      notes: CrmNote[];
+      bookings: BookingWithClass[];
+      waiver: WaiverStatus;
+    }>(`/admin/customers/${id}`),
+  waiverPdfUrl: (id: string) => `/api/admin/customers/${id}/waiver/pdf`,
   addNote: (id: string, body: string) =>
     api.post<{ note: CrmNote }>(`/admin/customers/${id}/notes`, { body }),
   deleteNote: (customerId: string, noteId: string) =>

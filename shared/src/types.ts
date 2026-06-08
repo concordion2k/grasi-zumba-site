@@ -194,6 +194,39 @@ export interface UpdateSettingsRequest {
   bannerMessage?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Liability waiver
+// ---------------------------------------------------------------------------
+
+/** The current user's waiver-signing status. */
+export interface WaiverStatus {
+  /** Whether the user has ever signed any version. */
+  signed: boolean;
+  /** Version they signed (null if never). */
+  signedVersion: string | null;
+  /** ISO timestamp of their signature (null if never). */
+  signedAt: string | null;
+  /** The legal name they signed with (null if never). */
+  fullName: string | null;
+  /** Whether they granted the optional photo/media release. */
+  photoRelease: boolean;
+  /** The current waiver version on file. */
+  currentVersion: string;
+  /** True only when signed AND signedVersion === currentVersion. Bookings require this. */
+  upToDate: boolean;
+}
+
+export interface SignWaiverRequest {
+  /** Typed full legal name — serves as the electronic signature. */
+  fullName: string;
+  /** Must be true: agreement to the liability release. */
+  agreeLiability: boolean;
+  /** Must be true: consent to sign electronically (ESIGN/UETA). */
+  consentElectronic: boolean;
+  /** Optional photo/media release opt-in. */
+  photoRelease?: boolean;
+}
+
 export interface UnsubscribeRequest {
   token: string;
 }

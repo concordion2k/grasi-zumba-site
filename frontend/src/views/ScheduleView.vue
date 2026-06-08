@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -14,6 +15,7 @@ import ClassCard from '@/components/ClassCard.vue';
 import { isPast } from '@/utils/format';
 
 const auth = useAuthStore();
+const router = useRouter();
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null);
 const classes = ref<ZumbaClassWithBookingState[]>([]);
 const loading = ref(true);
@@ -83,6 +85,16 @@ async function load() {
   }
 }
 
+function isWaiverRequired(e: unknown): boolean {
+  return (
+    e instanceof ApiRequestError &&
+    e.status === 403 &&
+    typeof e.details === 'object' &&
+    e.details !== null &&
+    (e.details as { code?: string }).code === 'waiver_required'
+  );
+}
+
 async function book(id: string) {
   busyId.value = id;
   error.value = '';
@@ -90,6 +102,11 @@ async function book(id: string) {
     await classesApi.book(id);
     await load();
   } catch (e) {
+    if (isWaiverRequired(e)) {
+      // Send them to sign, then return to the schedule to finish booking.
+      router.push({ name: 'waiver', query: { redirect: '/schedule' } });
+      return;
+    }
     error.value = e instanceof ApiRequestError ? e.message : 'Booking failed.';
   } finally {
     busyId.value = null;

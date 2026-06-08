@@ -8,6 +8,7 @@ import {
   newClassEmail,
   classChangedEmail,
   classCanceledEmail,
+  waiverSignedEmail,
 } from './templates.js';
 
 /** Resolve a domain event into the email(s) to send. Shared by the SQS worker and the local
@@ -38,6 +39,10 @@ export async function handleEvent(event: EmailEvent): Promise<void> {
     }
     case 'class.canceled': {
       await sendEmail(classCanceledEmail(event.to, event.class));
+      break;
+    }
+    case 'waiver.signed': {
+      await sendEmail(waiverSignedEmail(event.to, event.signedAt, event.version));
       break;
     }
     default: {

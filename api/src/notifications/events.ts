@@ -34,7 +34,13 @@ export type EmailEvent =
   | { type: 'booking.created'; to: EmailRecipient; class: ClassSummary }
   | { type: 'class.created'; to: EmailRecipient; class: ClassSummary }
   | { type: 'class.changed'; to: EmailRecipient; class: ClassSummary; changes: FieldChange[] }
-  | { type: 'class.canceled'; to: EmailRecipient; class: ClassSummary };
+  | { type: 'class.canceled'; to: EmailRecipient; class: ClassSummary }
+  | {
+      type: 'waiver.signed';
+      to: { email: string; name: string };
+      signedAt: string;
+      version: string;
+    };
 
 let sqs: SQSClient | undefined;
 function client(): SQSClient {
