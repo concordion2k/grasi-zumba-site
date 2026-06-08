@@ -1,7 +1,14 @@
 import type { EmailEvent } from './events.js';
 import { env } from '../env.js';
 import { sendEmail } from '../lib/email.js';
-import { welcomeEmail, contactInquiryEmail } from './templates.js';
+import {
+  welcomeEmail,
+  contactInquiryEmail,
+  bookingConfirmedEmail,
+  newClassEmail,
+  classChangedEmail,
+  classCanceledEmail,
+} from './templates.js';
 
 /** Resolve a domain event into the email(s) to send. Shared by the SQS worker and the local
  * inline path, so behavior is identical in dev and prod. */
@@ -15,6 +22,22 @@ export async function handleEvent(event: EmailEvent): Promise<void> {
     case 'contact.inquiry': {
       const msg = contactInquiryEmail(event);
       await sendEmail({ ...msg, to: env.contactTo });
+      break;
+    }
+    case 'booking.created': {
+      await sendEmail(bookingConfirmedEmail(event.to, event.class));
+      break;
+    }
+    case 'class.created': {
+      await sendEmail(newClassEmail(event.to, event.class));
+      break;
+    }
+    case 'class.changed': {
+      await sendEmail(classChangedEmail(event.to, event.class, event.changes));
+      break;
+    }
+    case 'class.canceled': {
+      await sendEmail(classCanceledEmail(event.to, event.class));
       break;
     }
     default: {

@@ -7,8 +7,23 @@
 
 export type UserRole = 'customer' | 'admin';
 
+/**
+ * Which email notifications a user wants. Defaults (applied for any user who predates this feature):
+ *   - notifyNewClass: false (opt-in — promotional)
+ *   - notifyBookingConfirm: true
+ *   - notifyClassChange: true
+ */
+export interface NotificationPrefs {
+  /** A brand-new class has been added to the calendar. */
+  notifyNewClass: boolean;
+  /** Confirmation when the user books a class. */
+  notifyBookingConfirm: boolean;
+  /** A class the user is booked into was changed or canceled. */
+  notifyClassChange: boolean;
+}
+
 /** A user as exposed to clients. Never includes credentials. */
-export interface PublicUser {
+export interface PublicUser extends NotificationPrefs {
   userId: string;
   email: string;
   name: string;
@@ -95,6 +110,8 @@ export interface RegisterRequest {
   password: string;
   /** ISO date, `YYYY-MM-DD`. */
   birthday: string;
+  /** Opt in to "new class announced" emails at signup (defaults to false). */
+  notifyNewClass?: boolean;
 }
 
 export interface LoginRequest {
@@ -110,6 +127,9 @@ export interface UpdateProfileRequest {
   name?: string;
   birthday?: string;
 }
+
+/** Patch the current user's email-notification preferences (at least one field required). */
+export type UpdateNotificationPrefsRequest = Partial<NotificationPrefs>;
 
 export interface ChangePasswordRequest {
   currentPassword: string;
@@ -131,6 +151,16 @@ export interface CreateClassRequest {
   durationMinutes: number;
   location: string;
   capacity: number;
+}
+
+/** Edit an existing class (all fields optional; at least one required). */
+export interface UpdateClassRequest {
+  title?: string;
+  description?: string;
+  startTime?: string;
+  durationMinutes?: number;
+  location?: string;
+  capacity?: number;
 }
 
 export interface CreateNoteRequest {
@@ -162,6 +192,16 @@ export interface SiteSettings {
 export interface UpdateSettingsRequest {
   bannerEnabled?: boolean;
   bannerMessage?: string;
+}
+
+export interface UnsubscribeRequest {
+  token: string;
+}
+
+export interface UnsubscribeResponse {
+  ok: true;
+  /** First name of the unsubscribed user, for a friendly confirmation. */
+  name: string;
 }
 
 /** Standard error envelope returned by the API. */

@@ -4,6 +4,7 @@ import type { BookingWithClass } from '@grasi/shared';
 import { requireAuth, currentUser } from '../middleware/auth.js';
 import { bookClass, cancelBooking, listUserBookings } from '../domain/bookings.js';
 import { getClass, toZumbaClass } from '../domain/classes.js';
+import { dispatchBookingConfirmed } from '../notifications/dispatch.js';
 
 /** Booking actions, mounted under /classes. All require authentication. */
 export const bookingRoutes = new Hono<AppEnv>();
@@ -11,10 +12,11 @@ bookingRoutes.use('*', requireAuth);
 
 bookingRoutes.post('/:classId/book', async (c) => {
   const user = currentUser(c);
-  await bookClass(
-    { userId: user.userId, name: user.name, email: user.email },
-    c.req.param('classId'),
-  );
+  const classId = c.req.param('classId');
+  await bookClass({ userId: user.userId, name: user.name, email: user.email }, classId);
+  // Confirmation email (fire-and-forget, honours the user's preference).
+  const cls = await getClass(classId);
+  if (cls) dispatchBookingConfirmed(user, cls);
   return c.json({ ok: true }, 201);
 });
 

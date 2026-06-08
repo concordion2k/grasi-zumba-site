@@ -44,6 +44,8 @@ export const env = {
   emailFrom: optional('EMAIL_FROM', 'Zumba by Grasiele <grasi@zumbabygrasiele.com>'),
   /** Where contact-form inquiries are delivered. */
   contactTo: optional('CONTACT_TO', 'grasi@zumbabygrasiele.com'),
+  /** IANA timezone used to render class dates/times in emails (no browser locale server-side). */
+  displayTimeZone: optional('DISPLAY_TIMEZONE', 'America/New_York'),
   /** When set, domain events are published to SQS; when unset (local), they run inline. */
   emailQueueUrl: process.env.EMAIL_QUEUE_URL || undefined,
 };

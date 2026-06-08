@@ -1,17 +1,19 @@
 import {
   TransactWriteCommand,
   GetCommand,
+  BatchGetCommand,
   UpdateCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import type { PublicUser, UserRole } from '@grasi/shared';
+import type { PublicUser, UserRole, NotificationPrefs } from '@grasi/shared';
 import { ddb, TABLE } from '../lib/dynamo.js';
 import { key, gsi1, GSI1 } from '../lib/keys.js';
 import { newId } from '../lib/ids.js';
 import { presignDownload } from '../lib/s3.js';
 import { conflict } from '../lib/errors.js';
 
-/** Stored user profile record. */
+/** Stored user profile record. Notification prefs are optional on disk — older records predate them
+ *  and are resolved to {@link DEFAULT_PREFS} via {@link resolvePrefs}. */
 export interface UserRecord {
   userId: string;
   email: string;
@@ -20,6 +22,25 @@ export interface UserRecord {
   role: UserRole;
   profilePictureKey?: string;
   createdAt: string;
+  notifyNewClass?: boolean;
+  notifyBookingConfirm?: boolean;
+  notifyClassChange?: boolean;
+}
+
+/** Defaults for users who predate a given preference (new-class is opt-in; the rest are on). */
+export const DEFAULT_PREFS: NotificationPrefs = {
+  notifyNewClass: false,
+  notifyBookingConfirm: true,
+  notifyClassChange: true,
+};
+
+/** Resolve a (possibly partial) record's prefs to concrete booleans. */
+export function resolvePrefs(record: Partial<NotificationPrefs>): NotificationPrefs {
+  return {
+    notifyNewClass: record.notifyNewClass ?? DEFAULT_PREFS.notifyNewClass,
+    notifyBookingConfirm: record.notifyBookingConfirm ?? DEFAULT_PREFS.notifyBookingConfirm,
+    notifyClassChange: record.notifyClassChange ?? DEFAULT_PREFS.notifyClassChange,
+  };
 }
 
 interface CreateUserInput {
@@ -28,6 +49,8 @@ interface CreateUserInput {
   passwordHash: string;
   birthday: string;
   role: UserRole;
+  /** Signup opt-in for new-class announcements (the other prefs use their defaults). */
+  notifyNewClass?: boolean;
 }
 
 export async function createUser(input: CreateUserInput): Promise<UserRecord> {
@@ -45,6 +68,9 @@ export async function createUser(input: CreateUserInput): Promise<UserRecord> {
     birthday: input.birthday,
     role: input.role,
     createdAt,
+    notifyNewClass: input.notifyNewClass ?? DEFAULT_PREFS.notifyNewClass,
+    notifyBookingConfirm: DEFAULT_PREFS.notifyBookingConfirm,
+    notifyClassChange: DEFAULT_PREFS.notifyClassChange,
   };
 
   const credential = {
@@ -91,6 +117,9 @@ export async function createUser(input: CreateUserInput): Promise<UserRecord> {
     birthday: input.birthday,
     role: input.role,
     createdAt,
+    notifyNewClass: input.notifyNewClass ?? DEFAULT_PREFS.notifyNewClass,
+    notifyBookingConfirm: DEFAULT_PREFS.notifyBookingConfirm,
+    notifyClassChange: DEFAULT_PREFS.notifyClassChange,
   };
 }
 
@@ -122,7 +151,18 @@ export async function updatePassword(email: string, passwordHash: string): Promi
 
 export async function updateUser(
   userId: string,
-  patch: Partial<Pick<UserRecord, 'name' | 'birthday' | 'profilePictureKey' | 'role'>>,
+  patch: Partial<
+    Pick<
+      UserRecord,
+      | 'name'
+      | 'birthday'
+      | 'profilePictureKey'
+      | 'role'
+      | 'notifyNewClass'
+      | 'notifyBookingConfirm'
+      | 'notifyClassChange'
+    >
+  >,
 ): Promise<UserRecord | null> {
   const sets: string[] = [];
   const names: Record<string, string> = {};
@@ -162,6 +202,22 @@ export async function listUsers(): Promise<UserRecord[]> {
   return (res.Items as UserRecord[] | undefined) ?? [];
 }
 
+/** Fetch many users by id in one round trip (chunked to DynamoDB's 100-key BatchGet limit). */
+export async function getUsersByIds(userIds: string[]): Promise<UserRecord[]> {
+  const unique = [...new Set(userIds)];
+  const out: UserRecord[] = [];
+  for (let i = 0; i < unique.length; i += 100) {
+    const chunk = unique.slice(i, i + 100);
+    const res = await ddb.send(
+      new BatchGetCommand({
+        RequestItems: { [TABLE]: { Keys: chunk.map((id) => key.userProfile(id)) } },
+      }),
+    );
+    out.push(...((res.Responses?.[TABLE] as UserRecord[] | undefined) ?? []));
+  }
+  return out;
+}
+
 /** Convert a stored record into the client-facing shape (presigning the avatar if present). */
 export async function toPublicUser(record: UserRecord): Promise<PublicUser> {
   const profilePictureUrl = record.profilePictureKey
@@ -175,5 +231,6 @@ export async function toPublicUser(record: UserRecord): Promise<PublicUser> {
     role: record.role,
     profilePictureUrl,
     createdAt: record.createdAt,
+    ...resolvePrefs(record),
   };
 }

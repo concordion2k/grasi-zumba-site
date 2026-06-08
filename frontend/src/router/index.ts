@@ -10,6 +10,11 @@ const router = createRouter({
     { path: '/pricing', name: 'pricing', component: () => import('@/views/PricingView.vue') },
     { path: '/contact', name: 'contact', component: () => import('@/views/ContactView.vue') },
     {
+      path: '/unsubscribe',
+      name: 'unsubscribe',
+      component: () => import('@/views/UnsubscribeView.vue'),
+    },
+    {
       path: '/payment-coming-soon',
       name: 'payment-coming-soon',
       component: () => import('@/views/PaymentComingSoonView.vue'),

@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import type { CrmCustomer, CrmNote, PublicUser, BookingWithClass } from '@grasi/shared';
+import type {
+  CrmCustomer,
+  CrmNote,
+  PublicUser,
+  BookingWithClass,
+  ZumbaClassWithBookingState,
+} from '@grasi/shared';
 import { DEFAULT_BANNER_MESSAGE } from '@grasi/shared';
-import { adminApi } from '@/api/endpoints';
+import { adminApi, classesApi } from '@/api/endpoints';
 import { ApiRequestError } from '@/api/client';
 import { useSettingsStore } from '@/stores/settings';
-import { formatRange, formatDate, formatBirthday } from '@/utils/format';
+import { formatRange, formatDate, formatBirthday, isPast } from '@/utils/format';
 
 type Tab = 'schedule' | 'customers' | 'signups' | 'settings';
 const tab = ref<Tab>('schedule');
@@ -44,39 +50,107 @@ async function saveSettings() {
 }
 
 // --- Schedule a class -------------------------------------------------------
-const form = ref({
+const EMPTY_FORM = {
   title: '',
   description: '',
   startTime: '',
   durationMinutes: 60,
   location: '',
   capacity: 20,
-});
+};
+const form = ref({ ...EMPTY_FORM });
 const creating = ref(false);
+/** Set when editing an existing class; null when creating a new one. */
+const editingId = ref<string | null>(null);
 
-async function createClass() {
+// Existing classes (for edit/cancel).
+const classes = ref<ZumbaClassWithBookingState[]>([]);
+const loadingClasses = ref(false);
+const cancelingId = ref<string | null>(null);
+
+async function loadClasses() {
+  loadingClasses.value = true;
+  try {
+    classes.value = (await classesApi.list()).classes;
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Could not load classes.';
+  } finally {
+    loadingClasses.value = false;
+  }
+}
+
+/** Convert an ISO instant to the `YYYY-MM-DDTHH:mm` value a datetime-local input expects (local tz). */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function resetForm() {
+  form.value = { ...EMPTY_FORM };
+  editingId.value = null;
+}
+
+function startEdit(cls: ZumbaClassWithBookingState) {
+  editingId.value = cls.classId;
+  form.value = {
+    title: cls.title,
+    description: cls.description,
+    startTime: toLocalInput(cls.startTime),
+    durationMinutes: Math.round(
+      (new Date(cls.endTime).getTime() - new Date(cls.startTime).getTime()) / 60000,
+    ),
+    location: cls.location,
+    capacity: cls.capacity,
+  };
+  error.value = '';
+  notice.value = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function submitClass() {
   creating.value = true;
   error.value = '';
   notice.value = '';
   try {
-    await adminApi.createClass({
+    const payload = {
       ...form.value,
       // datetime-local is in local time; convert to a real ISO instant.
       startTime: new Date(form.value.startTime).toISOString(),
-    });
-    notice.value = `"${form.value.title}" added to the calendar! 🎉`;
-    form.value = {
-      title: '',
-      description: '',
-      startTime: '',
-      durationMinutes: 60,
-      location: '',
-      capacity: 20,
     };
+    if (editingId.value) {
+      await adminApi.updateClass(editingId.value, payload);
+      notice.value = `"${form.value.title}" updated — booked dancers have been notified. ✨`;
+    } else {
+      await adminApi.createClass(payload);
+      notice.value = `"${form.value.title}" added to the calendar! 🎉`;
+    }
+    resetForm();
+    await loadClasses();
   } catch (e) {
-    error.value = e instanceof ApiRequestError ? e.message : 'Could not create the class.';
+    error.value = e instanceof ApiRequestError ? e.message : 'Could not save the class.';
   } finally {
     creating.value = false;
+  }
+}
+
+async function removeClass(cls: ZumbaClassWithBookingState) {
+  const booked = cls.bookedCount;
+  const warn =
+    booked > 0 ? ` ${booked} booked dancer${booked === 1 ? '' : 's'} will be emailed.` : '';
+  if (!window.confirm(`Cancel "${cls.title}"?${warn} This can't be undone.`)) return;
+  cancelingId.value = cls.classId;
+  error.value = '';
+  notice.value = '';
+  try {
+    await adminApi.cancelClass(cls.classId);
+    notice.value = `"${cls.title}" was canceled.`;
+    if (editingId.value === cls.classId) resetForm();
+    await loadClasses();
+  } catch (e) {
+    error.value = e instanceof ApiRequestError ? e.message : 'Could not cancel the class.';
+  } finally {
+    cancelingId.value = null;
   }
 }
 
@@ -157,14 +231,13 @@ function switchTab(t: Tab) {
   tab.value = t;
   error.value = '';
   notice.value = '';
+  if (t === 'schedule' && classes.value.length === 0) loadClasses();
   if (t === 'customers' && customers.value.length === 0) loadCustomers();
   if (t === 'signups' && signups.value.length === 0) loadSignups();
   if (t === 'settings') loadSettings();
 }
 
-onMounted(() => {
-  // default tab is schedule; nothing to preload
-});
+onMounted(loadClasses); // schedule is the default tab
 </script>
 
 <template>
@@ -192,54 +265,98 @@ onMounted(() => {
       <div v-if="notice" class="alert alert-success">{{ notice }}</div>
 
       <!-- Schedule -->
-      <section v-if="tab === 'schedule'" class="card form-card">
-        <form @submit.prevent="createClass">
-          <div class="field">
-            <label for="title">Class title</label>
-            <input id="title" v-model="form.title" type="text" required maxlength="120" />
-          </div>
-          <div class="field">
-            <label for="desc">Description</label>
-            <textarea id="desc" v-model="form.description" rows="3" maxlength="2000"></textarea>
-          </div>
-          <div class="form-row">
+      <section v-if="tab === 'schedule'">
+        <div class="card form-card">
+          <h2 class="form-title">{{ editingId ? 'Edit class' : 'Schedule a class' }}</h2>
+          <form @submit.prevent="submitClass">
             <div class="field">
-              <label for="start">Date &amp; time</label>
-              <input id="start" v-model="form.startTime" type="datetime-local" required />
+              <label for="title">Class title</label>
+              <input id="title" v-model="form.title" type="text" required maxlength="120" />
             </div>
             <div class="field">
-              <label for="dur">Duration (min)</label>
-              <input
-                id="dur"
-                v-model.number="form.durationMinutes"
-                type="number"
-                min="10"
-                max="360"
-                required
-              />
+              <label for="desc">Description</label>
+              <textarea id="desc" v-model="form.description" rows="3" maxlength="2000"></textarea>
             </div>
-          </div>
-          <div class="form-row">
-            <div class="field">
-              <label for="loc">Location</label>
-              <input id="loc" v-model="form.location" type="text" required />
+            <div class="form-row">
+              <div class="field">
+                <label for="start">Date &amp; time</label>
+                <input id="start" v-model="form.startTime" type="datetime-local" required />
+              </div>
+              <div class="field">
+                <label for="dur">Duration (min)</label>
+                <input
+                  id="dur"
+                  v-model.number="form.durationMinutes"
+                  type="number"
+                  min="10"
+                  max="360"
+                  required
+                />
+              </div>
             </div>
-            <div class="field">
-              <label for="cap">Capacity</label>
-              <input
-                id="cap"
-                v-model.number="form.capacity"
-                type="number"
-                min="1"
-                max="500"
-                required
-              />
+            <div class="form-row">
+              <div class="field">
+                <label for="loc">Location</label>
+                <input id="loc" v-model="form.location" type="text" required />
+              </div>
+              <div class="field">
+                <label for="cap">Capacity</label>
+                <input
+                  id="cap"
+                  v-model.number="form.capacity"
+                  type="number"
+                  min="1"
+                  max="500"
+                  required
+                />
+              </div>
             </div>
-          </div>
-          <button class="btn btn-primary" :disabled="creating" type="submit">
-            {{ creating ? 'Adding…' : 'Add to calendar 🎉' }}
-          </button>
-        </form>
+            <div class="form-actions">
+              <button class="btn btn-primary" :disabled="creating" type="submit">
+                {{ creating ? 'Saving…' : editingId ? 'Save changes ✨' : 'Add to calendar 🎉' }}
+              </button>
+              <button v-if="editingId" class="btn btn-ghost" type="button" @click="resetForm">
+                Cancel edit
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Existing classes -->
+        <div class="card class-list-card">
+          <h2 class="form-title">Upcoming classes</h2>
+          <div v-if="loadingClasses" class="spinner"></div>
+          <p v-else-if="classes.length === 0" class="muted">No classes scheduled yet.</p>
+          <ul v-else class="class-list">
+            <li
+              v-for="cls in classes"
+              :key="cls.classId"
+              :class="{ editing: editingId === cls.classId }"
+            >
+              <div class="class-info">
+                <strong>{{ cls.title }}</strong>
+                <span class="muted small block">{{ formatRange(cls.startTime, cls.endTime) }}</span>
+                <span class="muted small block">
+                  📍 {{ cls.location }} · {{ cls.bookedCount }}/{{ cls.capacity }} booked
+                  <span v-if="isPast(cls.startTime)" class="pill pill-past">past</span>
+                </span>
+              </div>
+              <div class="class-actions">
+                <button class="btn btn-ghost btn-sm" type="button" @click="startEdit(cls)">
+                  Edit
+                </button>
+                <button
+                  class="btn btn-danger btn-sm"
+                  type="button"
+                  :disabled="cancelingId === cls.classId"
+                  @click="removeClass(cls)"
+                >
+                  {{ cancelingId === cls.classId ? '…' : 'Cancel' }}
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
       </section>
 
       <!-- Customers / CRM -->
@@ -421,10 +538,70 @@ onMounted(() => {
 .form-card {
   max-width: 640px;
 }
+.form-title {
+  margin: 0 0 1rem;
+}
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+.form-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Existing-classes list (schedule tab) */
+.class-list-card {
+  max-width: 640px;
+  margin-top: 1.25rem;
+}
+.class-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.class-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 2px solid var(--c-line);
+  border-radius: var(--radius-sm);
+}
+.class-list li.editing {
+  border-color: var(--c-pink);
+  background: rgba(255, 46, 99, 0.06);
+}
+.class-info {
+  min-width: 0;
+}
+.class-info > strong {
+  display: block;
+}
+.class-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+.btn-danger {
+  background: #fff;
+  color: var(--c-pink-dark);
+  border: 2px solid var(--c-pink);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--c-pink);
+  color: #fff;
+}
+.pill-past {
+  background: var(--c-line);
+  color: var(--c-ink-soft);
 }
 
 /* Settings: toggle switch */

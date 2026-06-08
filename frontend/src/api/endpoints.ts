@@ -13,16 +13,23 @@ import type {
   UpdateProfileRequest,
   ChangePasswordRequest,
   CreateClassRequest,
+  UpdateClassRequest,
   PresignUploadResponse,
   AllowedImageType,
   SiteSettings,
   UpdateSettingsRequest,
   ContactRequest,
+  UpdateNotificationPrefsRequest,
+  UnsubscribeResponse,
 } from '@grasi/shared';
 import { api, uploadToS3 } from './client.js';
 
 export const contactApi = {
   send: (body: ContactRequest) => api.post<{ ok: true }>('/contact', body),
+};
+
+export const unsubscribeApi = {
+  confirm: (token: string) => api.post<UnsubscribeResponse>('/unsubscribe', { token }),
 };
 
 export const authApi = {
@@ -42,6 +49,8 @@ export const classesApi = {
 export const meApi = {
   bookings: () => api.get<{ bookings: BookingWithClass[] }>('/me/bookings'),
   updateProfile: (body: UpdateProfileRequest) => api.patch<AuthResponse>('/me', body),
+  updateNotifications: (body: UpdateNotificationPrefsRequest) =>
+    api.patch<AuthResponse>('/me/notifications', body),
   changePassword: (body: ChangePasswordRequest) => api.post<{ ok: true }>('/me/password', body),
   async uploadAvatar(file: File): Promise<PublicUser> {
     const { uploadUrl, key } = await api.post<PresignUploadResponse>('/me/avatar/presign', {
@@ -72,6 +81,9 @@ export const adminApi = {
   signups: () => api.get<{ signups: PublicUser[] }>('/admin/signups'),
   createClass: (body: CreateClassRequest) =>
     api.post<{ class: ZumbaClass }>('/admin/classes', body),
+  updateClass: (id: string, body: UpdateClassRequest) =>
+    api.patch<{ class: ZumbaClass }>(`/admin/classes/${id}`, body),
+  cancelClass: (id: string) => api.delete<{ ok: true }>(`/admin/classes/${id}`),
   roster: (id: string) =>
     api.get<{ class: ZumbaClass; roster: RosterEntry[] }>(`/admin/classes/${id}/roster`),
 };

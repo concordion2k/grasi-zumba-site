@@ -32,6 +32,7 @@ authRoutes.post('/register', async (c) => {
     passwordHash,
     birthday: input.birthday,
     role: roleForEmail(input.email),
+    notifyNewClass: input.notifyNewClass,
   });
   const token = await createSession(user.userId);
   setSessionCookie(c, token);

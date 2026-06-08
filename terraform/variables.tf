@@ -44,6 +44,12 @@ variable "contact_to" {
   description = "Where contact-form inquiries are delivered."
 }
 
+variable "display_timezone" {
+  type        = string
+  default     = "America/New_York"
+  description = "IANA timezone used to render class dates/times in notification emails."
+}
+
 variable "frontend_origin" {
   type        = string
   default     = "https://localhost"

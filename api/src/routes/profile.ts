@@ -6,6 +6,7 @@ import {
   presignUploadSchema,
   confirmUploadSchema,
   changePasswordSchema,
+  notificationPrefsSchema,
 } from '../schemas.js';
 import {
   updateUser,
@@ -57,6 +58,14 @@ profileRoutes.post('/password', async (c) => {
   setSessionCookie(c, token);
 
   return c.json({ ok: true });
+});
+
+/** Update email-notification preferences. */
+profileRoutes.patch('/notifications', async (c) => {
+  const user = currentUser(c);
+  const patch = notificationPrefsSchema.parse(await c.req.json());
+  const updated = await updateUser(user.userId, patch);
+  return c.json({ user: await toPublicUser(updated ?? user) });
 });
 
 /** Step 1: get a presigned URL to upload a new avatar straight to S3. */

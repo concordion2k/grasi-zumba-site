@@ -1,10 +1,20 @@
 import { env } from '../env.js';
 import type { OutgoingEmail } from '../lib/email.js';
+import type { ClassSummary, FieldChange, EmailRecipient } from './events.js';
+import { formatClassTime } from '../lib/datetime.js';
 
 const BRAND = 'Zumba by Grasiele';
 
-/** Minimal branded HTML shell. Inline styles only (email clients ignore <style>/external CSS). */
-function shell(heading: string, bodyHtml: string): string {
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Minimal branded HTML shell. Inline styles only (email clients ignore <style>/external CSS).
+ *  When `unsubUrl` is given, an unsubscribe line is added to the footer. */
+function shell(heading: string, bodyHtml: string, unsubUrl?: string): string {
+  const unsub = unsubUrl
+    ? `<p style="color:#8a7d97;font-size:12px;text-align:center;margin:8px 0 0">
+         <a href="${unsubUrl}" style="color:#8a7d97">Unsubscribe from these emails</a>
+       </p>`
+    : '';
   return `<!doctype html><html><body style="margin:0;background:#fff8f3;font-family:Arial,Helvetica,sans-serif;color:#241733">
   <div style="max-width:560px;margin:0 auto;padding:24px">
     <div style="background:linear-gradient(120deg,#ff2e63,#ff7a00 55%,#ffcc29);border-radius:16px;padding:20px 24px;color:#fff">
@@ -17,11 +27,29 @@ function shell(heading: string, bodyHtml: string): string {
     <p style="color:#8a7d97;font-size:12px;text-align:center;margin:16px 0 0">
       ${BRAND} · Energia do Rio, na sua vizinhança 🇧🇷
     </p>
+    ${unsub}
   </div></body></html>`;
 }
 
 function button(href: string, label: string): string {
   return `<a href="${href}" style="display:inline-block;background:#ff2e63;color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;margin-top:8px">${label}</a>`;
+}
+
+function unsubUrl(token: string): string {
+  return `${env.frontendOrigin}/unsubscribe?token=${encodeURIComponent(token)}`;
+}
+
+/** HTML block summarising a class's time + place. */
+function classDetailsHtml(cls: ClassSummary): string {
+  return `<p style="line-height:1.7;background:#fff8f3;border-radius:12px;padding:14px;margin:0 0 12px">
+    <strong>${esc(cls.title)}</strong><br/>
+    🗓️ ${esc(formatClassTime(cls.startTime, cls.endTime))}<br/>
+    📍 ${esc(cls.location)}
+  </p>`;
+}
+
+function classDetailsText(cls: ClassSummary): string {
+  return `${cls.title}\n  ${formatClassTime(cls.startTime, cls.endTime)}\n  ${cls.location}`;
 }
 
 /** Inquiry from the public contact form, delivered to the business inbox (reply-to the sender). */
@@ -36,7 +64,6 @@ export function contactInquiryEmail(inquiry: {
     `Name:  ${inquiry.name}\n` +
     `Email: ${inquiry.email}\n\n` +
     `Message:\n${inquiry.message}\n`;
-  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const html = shell(
     `New inquiry from ${esc(inquiry.name)}`,
     `<p style="margin:0 0 6px"><strong>Email:</strong>
@@ -57,7 +84,7 @@ export function welcomeEmail(name: string): OutgoingEmail {
     `You can manage your account and email preferences anytime at ${site}/dashboard\n\n` +
     `Vem dançar!\nGrasi`;
   const html = shell(
-    `Welcome, ${name}! 🎉`,
+    `Welcome, ${esc(name)}! 🎉`,
     `<p style="line-height:1.6">We're so happy you're here. Come feel the rhythm of Rio — book your first
      class whenever you're ready.</p>
      <p>${button(`${site}/schedule`, 'See the schedule →')}</p>
@@ -66,4 +93,112 @@ export function welcomeEmail(name: string): OutgoingEmail {
      <p style="margin-top:16px">Vem dançar!<br/>Grasi</p>`,
   );
   return { to: '', subject, text, html };
+}
+
+/** Confirmation after a user books a class. */
+export function bookingConfirmedEmail(to: EmailRecipient, cls: ClassSummary): OutgoingEmail {
+  const site = env.frontendOrigin;
+  const u = unsubUrl(to.unsubToken);
+  const subject = `You're booked: ${cls.title} 💃`;
+  const text =
+    `Hi ${to.name},\n\n` +
+    `You're all set! Here are the details:\n\n` +
+    `${classDetailsText(cls)}\n\n` +
+    `See your classes: ${site}/dashboard\n\n` +
+    `Vem dançar!\nGrasi\n\n` +
+    `Unsubscribe: ${u}`;
+  const html = shell(
+    `You're booked! 🎉`,
+    `<p style="line-height:1.6">Hi ${esc(to.name)}, you're all set — can't wait to dance with you!</p>
+     ${classDetailsHtml(cls)}
+     <p>${button(`${site}/dashboard`, 'View your classes →')}</p>
+     <p style="margin-top:16px">Vem dançar!<br/>Grasi</p>`,
+    u,
+  );
+  return { to: to.email, subject, text, html };
+}
+
+/** Announcement of a brand-new class to opted-in users. */
+export function newClassEmail(to: EmailRecipient, cls: ClassSummary): OutgoingEmail {
+  const site = env.frontendOrigin;
+  const u = unsubUrl(to.unsubToken);
+  const subject = `New class just added: ${cls.title} 🎉`;
+  const text =
+    `Hi ${to.name},\n\n` +
+    `A new class just landed on the calendar:\n\n` +
+    `${classDetailsText(cls)}\n\n` +
+    `Grab your spot: ${site}/schedule\n\n` +
+    `Vem dançar!\nGrasi\n\n` +
+    `Unsubscribe: ${u}`;
+  const html = shell(
+    `New class just added! 🎉`,
+    `<p style="line-height:1.6">Hi ${esc(to.name)}, a fresh class just landed on the calendar:</p>
+     ${classDetailsHtml(cls)}
+     <p>${button(`${site}/schedule`, 'Grab your spot →')}</p>
+     <p style="margin-top:16px">Vem dançar!<br/>Grasi</p>`,
+    u,
+  );
+  return { to: to.email, subject, text, html };
+}
+
+/** Notify a booked user that their class changed, detailing what changed. */
+export function classChangedEmail(
+  to: EmailRecipient,
+  cls: ClassSummary,
+  changes: FieldChange[],
+): OutgoingEmail {
+  const site = env.frontendOrigin;
+  const u = unsubUrl(to.unsubToken);
+  const subject = `Update to your class: ${cls.title}`;
+  const changeLinesText = changes.map((c) => `  • ${c.label}: ${c.from} → ${c.to}`).join('\n');
+  const changeLinesHtml = changes
+    .map(
+      (c) =>
+        `<li style="margin:0 0 6px"><strong>${esc(c.label)}:</strong>
+         <span style="color:#8a7d97;text-decoration:line-through">${esc(c.from)}</span>
+         → <strong>${esc(c.to)}</strong></li>`,
+    )
+    .join('');
+  const text =
+    `Hi ${to.name},\n\n` +
+    `A class you're booked into has been updated:\n\n` +
+    `${changeLinesText}\n\n` +
+    `Updated details:\n${classDetailsText(cls)}\n\n` +
+    `See your classes: ${site}/dashboard\n\n` +
+    `Vem dançar!\nGrasi\n\n` +
+    `Unsubscribe: ${u}`;
+  const html = shell(
+    `Your class has been updated`,
+    `<p style="line-height:1.6">Hi ${esc(to.name)}, a class you're booked into has changed:</p>
+     <ul style="line-height:1.6;padding-left:18px;margin:0 0 12px">${changeLinesHtml}</ul>
+     ${classDetailsHtml(cls)}
+     <p>${button(`${site}/dashboard`, 'View your classes →')}</p>
+     <p style="margin-top:16px">Vem dançar!<br/>Grasi</p>`,
+    u,
+  );
+  return { to: to.email, subject, text, html };
+}
+
+/** Notify a booked user that their class was canceled. */
+export function classCanceledEmail(to: EmailRecipient, cls: ClassSummary): OutgoingEmail {
+  const site = env.frontendOrigin;
+  const u = unsubUrl(to.unsubToken);
+  const subject = `Class canceled: ${cls.title}`;
+  const text =
+    `Hi ${to.name},\n\n` +
+    `Unfortunately this class has been canceled:\n\n` +
+    `${classDetailsText(cls)}\n\n` +
+    `Sorry for the inconvenience! Browse other classes here: ${site}/schedule\n\n` +
+    `Vem dançar!\nGrasi\n\n` +
+    `Unsubscribe: ${u}`;
+  const html = shell(
+    `Class canceled`,
+    `<p style="line-height:1.6">Hi ${esc(to.name)}, unfortunately this class has been canceled:</p>
+     ${classDetailsHtml(cls)}
+     <p style="line-height:1.6">Sorry for the inconvenience — I hope to see you at another class soon.</p>
+     <p>${button(`${site}/schedule`, 'Browse other classes →')}</p>
+     <p style="margin-top:16px">Vem dançar!<br/>Grasi</p>`,
+    u,
+  );
+  return { to: to.email, subject, text, html };
 }
