@@ -123,11 +123,13 @@ export function waiverSignedEmail(
 export function bookingConfirmedEmail(to: EmailRecipient, cls: ClassSummary): OutgoingEmail {
   const site = env.frontendOrigin;
   const u = unsubUrl(to.unsubToken);
+  const calendarUrl = `${site}/api/classes/${cls.classId}/calendar.ics`;
   const subject = `You're booked: ${cls.title} 💃`;
   const text =
     `Hi ${to.name},\n\n` +
     `You're all set! Here are the details:\n\n` +
     `${classDetailsText(cls)}\n\n` +
+    `Add to your calendar: ${calendarUrl}\n\n` +
     `See your classes: ${site}/dashboard\n\n` +
     `Vem dançar!\nGrasi\n\n` +
     `Unsubscribe: ${u}`;
@@ -135,6 +137,9 @@ export function bookingConfirmedEmail(to: EmailRecipient, cls: ClassSummary): Ou
     `You're booked! 🎉`,
     `<p style="line-height:1.6">Hi ${esc(to.name)}, you're all set — can't wait to dance with you!</p>
      ${classDetailsHtml(cls)}
+     <p style="margin:0 0 12px">
+       <a href="${calendarUrl}" style="color:#d81b54;font-weight:700">📅 Add to your calendar</a>
+     </p>
      <p>${button(`${site}/dashboard`, 'View your classes →')}</p>
      <p style="margin-top:16px">Vem dançar!<br/>Grasi</p>`,
     u,

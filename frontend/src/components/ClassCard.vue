@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import type { ZumbaClassWithBookingState } from '@grasi/shared';
 import { formatRange, isPast } from '@/utils/format';
 
@@ -11,6 +11,16 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ book: [id: string]; cancel: [id: string] }>();
+
+// Location map (tap to expand). Keyless Google Maps embed of the address — no API key needed.
+const showMap = ref(false);
+const embedUrl = computed(
+  () =>
+    `https://maps.google.com/maps?q=${encodeURIComponent(props.cls.location)}&z=15&output=embed`,
+);
+const externalUrl = computed(
+  () => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(props.cls.location)}`,
+);
 
 const past = computed(() => isPast(props.cls.startTime));
 const full = computed(() => props.cls.spotsRemaining <= 0 && !props.cls.bookedByMe);
@@ -34,7 +44,24 @@ const spotsPillClass = computed(() => {
     </div>
 
     <p class="when">🗓️ {{ formatRange(cls.startTime, cls.endTime) }}</p>
-    <p class="where muted">📍 {{ cls.location }}</p>
+    <p class="where muted">
+      📍 {{ cls.location }}
+      <button v-if="cls.location" type="button" class="map-toggle" @click="showMap = !showMap">
+        {{ showMap ? 'Hide map' : 'View map' }}
+      </button>
+    </p>
+    <div v-if="cls.location && showMap" class="map-wrap">
+      <iframe
+        :src="embedUrl"
+        class="map-frame"
+        loading="lazy"
+        title="Class location map"
+        referrerpolicy="no-referrer-when-downgrade"
+      ></iframe>
+      <a :href="externalUrl" target="_blank" rel="noopener" class="map-open">
+        Open in Google Maps ↗
+      </a>
+    </div>
     <p v-if="cls.description" class="desc">{{ cls.description }}</p>
 
     <div class="class-foot">
@@ -84,6 +111,38 @@ const spotsPillClass = computed(() => {
 }
 .where {
   margin: 0;
+}
+.map-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 0.35rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--c-pink-dark);
+  cursor: pointer;
+}
+.map-toggle:hover {
+  text-decoration: underline;
+}
+.map-wrap {
+  margin: 0.5rem 0 0;
+}
+.map-frame {
+  width: 100%;
+  height: 180px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  display: block;
+}
+.map-open {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--c-pink-dark);
 }
 .desc {
   margin: 0.4rem 0 0;

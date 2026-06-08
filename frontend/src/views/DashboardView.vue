@@ -78,6 +78,19 @@ const pwNotice = ref('');
 const upcoming = computed(() => bookings.value.filter((b) => !isPast(b.class.startTime)));
 const past = computed(() => bookings.value.filter((b) => isPast(b.class.startTime)));
 
+// Location maps (tap to expand). Keyless Google Maps embed of the address — no API key needed.
+const openMaps = ref(new Set<string>());
+function toggleMap(id: string) {
+  const next = new Set(openMaps.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  openMaps.value = next;
+}
+const mapEmbedUrl = (loc: string) =>
+  `https://maps.google.com/maps?q=${encodeURIComponent(loc)}&z=15&output=embed`;
+const mapExternalUrl = (loc: string) =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`;
+
 const initials = computed(() =>
   (auth.user?.name ?? '?')
     .split(' ')
@@ -303,7 +316,39 @@ onMounted(load);
                     <span class="muted small block"
                       >🗓️ {{ formatRange(b.class.startTime, b.class.endTime) }}</span
                     >
-                    <span class="muted small block">📍 {{ b.class.location }}</span>
+                    <span class="muted small block">
+                      📍 {{ b.class.location }}
+                      <button
+                        v-if="b.class.location"
+                        type="button"
+                        class="map-toggle"
+                        @click="toggleMap(b.class.classId)"
+                      >
+                        {{ openMaps.has(b.class.classId) ? 'Hide map' : 'View map' }}
+                      </button>
+                    </span>
+                    <div v-if="openMaps.has(b.class.classId)" class="map-wrap">
+                      <iframe
+                        :src="mapEmbedUrl(b.class.location)"
+                        class="map-frame"
+                        loading="lazy"
+                        title="Class location map"
+                        referrerpolicy="no-referrer-when-downgrade"
+                      ></iframe>
+                      <a
+                        :href="mapExternalUrl(b.class.location)"
+                        target="_blank"
+                        rel="noopener"
+                        class="map-open"
+                        >Open in Google Maps ↗</a
+                      >
+                    </div>
+                    <a
+                      :href="`/api/classes/${b.class.classId}/calendar.ics`"
+                      class="cal-link small"
+                    >
+                      📅 Add to calendar
+                    </a>
                   </div>
                   <button
                     class="btn btn-danger btn-sm"
@@ -773,6 +818,44 @@ onMounted(load);
 .br-main strong {
   display: block;
   margin-bottom: 0.15rem;
+}
+.cal-link {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-weight: 700;
+  color: var(--c-pink-dark);
+}
+.map-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 0.35rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--c-pink-dark);
+  cursor: pointer;
+}
+.map-toggle:hover {
+  text-decoration: underline;
+}
+.map-wrap {
+  margin: 0.5rem 0 0.25rem;
+}
+.map-frame {
+  width: 100%;
+  height: 180px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  display: block;
+}
+.map-open {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--c-pink-dark);
 }
 .booking-rows.past {
   margin-top: 0.75rem;

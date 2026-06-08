@@ -82,12 +82,22 @@ export const contactSchema = z.object({
   company: z.string().max(200).optional(),
 });
 
+const street1 = z.string().trim().min(1).max(120);
+const street2 = z.string().trim().max(120).optional();
+const city = z.string().trim().min(1).max(80);
+const state = z.string().trim().min(2).max(50);
+const zip = z.string().trim().min(3).max(12);
+
 export const createClassSchema = z.object({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(2000).default(''),
   startTime: isoDateTime,
   durationMinutes: z.number().int().min(10).max(360),
-  location: z.string().trim().min(1).max(200),
+  street1,
+  street2,
+  city,
+  state,
+  zip,
   capacity: z.number().int().min(1).max(500),
 });
 
@@ -97,7 +107,11 @@ export const updateClassSchema = z
     description: z.string().trim().max(2000).optional(),
     startTime: isoDateTime.optional(),
     durationMinutes: z.number().int().min(10).max(360).optional(),
-    location: z.string().trim().min(1).max(200).optional(),
+    street1: street1.optional(),
+    street2,
+    city: city.optional(),
+    state: state.optional(),
+    zip: zip.optional(),
     capacity: z.number().int().min(1).max(500).optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), {
