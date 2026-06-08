@@ -20,6 +20,8 @@ import {
 import { countUserBookings, listUserBookings, listRoster } from '../domain/bookings.js';
 import { createNote, listNotes, countNotes, deleteNote } from '../domain/notes.js';
 import { updateSettings } from '../domain/settings.js';
+import { getWaiverStatus, getWaiverRecord } from '../domain/waiver.js';
+import { buildWaiverPdf } from '../lib/waiver-pdf.js';
 import { notFound } from '../lib/errors.js';
 import { formatClassTime } from '../lib/datetime.js';
 import {
@@ -80,7 +82,11 @@ adminRoutes.get('/customers/:userId', async (c) => {
   const user = await getUserById(userId);
   if (!user) throw notFound('Customer not found');
 
-  const [notes, bookingRefs] = await Promise.all([listNotes(userId), listUserBookings(userId)]);
+  const [notes, bookingRefs, waiver] = await Promise.all([
+    listNotes(userId),
+    listUserBookings(userId),
+    getWaiverStatus(userId),
+  ]);
 
   const bookings: BookingWithClass[] = [];
   for (const b of bookingRefs) {
@@ -94,7 +100,27 @@ adminRoutes.get('/customers/:userId', async (c) => {
   }
   bookings.sort((a, b) => b.class.startTime.localeCompare(a.class.startTime));
 
-  return c.json({ user: await toPublicUser(user), notes, bookings });
+  return c.json({ user: await toPublicUser(user), notes, bookings, waiver });
+});
+
+/** Download a customer's signed waiver PDF (admin record-keeping). */
+adminRoutes.get('/customers/:userId/waiver/pdf', async (c) => {
+  const userId = c.req.param('userId');
+  const record = await getWaiverRecord(userId);
+  if (!record) throw notFound('This customer has not signed the waiver');
+  const bytes = await buildWaiverPdf({
+    fullName: record.fullName,
+    signedAt: record.signedAt,
+    version: record.version,
+    photoRelease: record.photoRelease,
+    ip: record.ip,
+  });
+  return new Response(bytes, {
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="waiver-${userId}.pdf"`,
+    },
+  });
 });
 
 // --- CRM: notes -------------------------------------------------------------

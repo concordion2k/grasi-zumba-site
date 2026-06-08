@@ -255,6 +255,11 @@ a:hover {
   color: var(--c-green-deep);
   border: 1px solid rgba(0, 177, 106, 0.3);
 }
+.alert-info {
+  background: rgba(255, 122, 0, 0.1);
+  color: #8a4b00;
+  border: 1px solid rgba(255, 122, 0, 0.3);
+}
 
 /* ---- Helpers ---------------------------------------------------------- */
 .text-gradient {

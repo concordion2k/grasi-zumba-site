@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -11,9 +12,11 @@ import { classesApi } from '@/api/endpoints';
 import { ApiRequestError } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import ClassCard from '@/components/ClassCard.vue';
-import { isPast } from '@/utils/format';
+import ConfirmModal from '@/components/ConfirmModal.vue';
+import { isPast, formatRange } from '@/utils/format';
 
 const auth = useAuthStore();
+const router = useRouter();
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null);
 const classes = ref<ZumbaClassWithBookingState[]>([]);
 const loading = ref(true);
@@ -83,27 +86,45 @@ async function load() {
   }
 }
 
-async function book(id: string) {
-  busyId.value = id;
-  error.value = '';
-  try {
-    await classesApi.book(id);
-    await load();
-  } catch (e) {
-    error.value = e instanceof ApiRequestError ? e.message : 'Booking failed.';
-  } finally {
-    busyId.value = null;
-  }
+function isWaiverRequired(e: unknown): boolean {
+  return (
+    e instanceof ApiRequestError &&
+    e.status === 403 &&
+    typeof e.details === 'object' &&
+    e.details !== null &&
+    (e.details as { code?: string }).code === 'waiver_required'
+  );
 }
 
-async function cancel(id: string) {
-  busyId.value = id;
+// Confirmation modal — shared by both book and cancel.
+const pending = ref<{ cls: ZumbaClassWithBookingState; action: 'book' | 'cancel' } | null>(null);
+
+/** ClassCard "book"/"cancel" → open the confirmation modal. */
+function requestAction(id: string, action: 'book' | 'cancel') {
+  const cls = classes.value.find((c) => c.classId === id);
+  if (cls) pending.value = { cls, action };
+}
+
+async function confirmPending() {
+  const p = pending.value;
+  if (!p) return;
+  busyId.value = p.cls.classId;
   error.value = '';
   try {
-    await classesApi.cancel(id);
+    if (p.action === 'book') await classesApi.book(p.cls.classId);
+    else await classesApi.cancel(p.cls.classId);
+    pending.value = null;
     await load();
   } catch (e) {
-    error.value = e instanceof ApiRequestError ? e.message : 'Could not cancel.';
+    const wasBook = p.action === 'book';
+    pending.value = null;
+    if (wasBook && isWaiverRequired(e)) {
+      // Send them to sign, then return to the schedule to finish booking.
+      router.push({ name: 'waiver', query: { redirect: '/schedule' } });
+      return;
+    }
+    error.value =
+      e instanceof ApiRequestError ? e.message : wasBook ? 'Booking failed.' : 'Could not cancel.';
   } finally {
     busyId.value = null;
   }
@@ -157,13 +178,34 @@ onUnmounted(() => window.removeEventListener('resize', handleResize));
               :cls="c"
               :busy="busyId === c.classId"
               :can-book="auth.isAuthenticated"
-              @book="book"
-              @cancel="cancel"
+              @book="(id) => requestAction(id, 'book')"
+              @cancel="(id) => requestAction(id, 'cancel')"
             />
           </div>
         </div>
       </template>
     </div>
+
+    <ConfirmModal
+      :open="pending !== null"
+      :title="pending?.action === 'cancel' ? 'Cancel this booking?' : 'Book this class?'"
+      :confirm-text="pending?.action === 'cancel' ? 'Yes, cancel' : 'Yes, book it 💃'"
+      :variant="pending?.action === 'cancel' ? 'danger' : 'primary'"
+      :busy="busyId !== null"
+      @confirm="confirmPending"
+      @cancel="pending = null"
+    >
+      <template v-if="pending">
+        <template v-if="pending.action === 'cancel'">
+          You're about to cancel your spot in <strong>{{ pending.cls.title }}</strong>
+        </template>
+        <template v-else>
+          You're about to book <strong>{{ pending.cls.title }}</strong>
+        </template>
+        <br />
+        <span class="muted">{{ formatRange(pending.cls.startTime, pending.cls.endTime) }}</span>
+      </template>
+    </ConfirmModal>
   </div>
 </template>
 

@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import type { BookingWithClass, ZumbaClassWithBookingState } from '@grasi/shared';
+import type { BookingWithClass, ZumbaClassWithBookingState, WaiverStatus } from '@grasi/shared';
 import { ALLOWED_IMAGE_TYPES, PROFILE_PICTURE_MAX_BYTES } from '@grasi/shared';
-import { meApi, classesApi } from '@/api/endpoints';
+import { meApi, classesApi, waiverApi } from '@/api/endpoints';
 import { ApiRequestError } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import ClassCard from '@/components/ClassCard.vue';
-import { isPast } from '@/utils/format';
+import ConfirmModal from '@/components/ConfirmModal.vue';
+import { isPast, formatRange } from '@/utils/format';
 import { resizeImageToLimit } from '@/utils/image';
 
 const auth = useAuthStore();
 const bookings = ref<BookingWithClass[]>([]);
+const waiver = ref<WaiverStatus | null>(null);
 const loading = ref(true);
 const error = ref('');
 const notice = ref('');
@@ -84,7 +86,9 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    bookings.value = (await meApi.bookings()).bookings;
+    const [b, w] = await Promise.all([meApi.bookings(), waiverApi.status()]);
+    bookings.value = b.bookings;
+    waiver.value = w.status;
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Could not load your classes.';
   } finally {
@@ -172,13 +176,25 @@ async function onAvatarChange(e: Event) {
   }
 }
 
-async function cancel(id: string) {
-  busyId.value = id;
+// Cancel confirmation modal.
+const pendingCancel = ref<BookingWithClass['class'] | null>(null);
+
+/** ClassCard "cancel" → open the confirmation modal. */
+function requestCancel(id: string) {
+  pendingCancel.value = bookings.value.find((b) => b.class.classId === id)?.class ?? null;
+}
+
+async function confirmCancel() {
+  const cls = pendingCancel.value;
+  if (!cls) return;
+  busyId.value = cls.classId;
   error.value = '';
   try {
-    await classesApi.cancel(id);
+    await classesApi.cancel(cls.classId);
+    pendingCancel.value = null;
     await load();
   } catch (e) {
+    pendingCancel.value = null;
     error.value = e instanceof ApiRequestError ? e.message : 'Could not cancel.';
   } finally {
     busyId.value = null;
@@ -262,6 +278,39 @@ onMounted(load);
             </ul>
           </section>
 
+          <!-- Liability waiver -->
+          <section class="card waiver-card">
+            <h3>Liability waiver</h3>
+            <template v-if="waiver?.upToDate">
+              <p class="muted small">
+                ✅ Signed by <strong>{{ waiver.fullName }}</strong>
+                <span v-if="waiver.signedAt">
+                  on {{ new Date(waiver.signedAt).toLocaleDateString() }}</span
+                >.
+              </p>
+              <a
+                :href="waiverApi.myPdfUrl"
+                target="_blank"
+                rel="noopener"
+                class="btn btn-ghost btn-sm"
+              >
+                📥 Download my signed copy
+              </a>
+            </template>
+            <template v-else>
+              <p class="muted small">
+                {{
+                  waiver?.signed
+                    ? 'Our waiver was updated — please re-sign.'
+                    : "You haven't signed the waiver yet. It's required before booking."
+                }}
+              </p>
+              <RouterLink to="/waiver" class="btn btn-primary btn-sm"
+                >Review &amp; sign ✍️</RouterLink
+              >
+            </template>
+          </section>
+
           <!-- Change password -->
           <section class="card pw-card">
             <h3>Change password</h3>
@@ -323,7 +372,7 @@ onMounted(load);
                 :cls="toCardClass(b)"
                 :busy="busyId === b.class.classId"
                 can-book
-                @cancel="cancel"
+                @cancel="requestCancel"
               />
             </div>
 
@@ -337,6 +386,22 @@ onMounted(load);
         </section>
       </div>
     </div>
+
+    <ConfirmModal
+      :open="pendingCancel !== null"
+      title="Cancel this booking?"
+      confirm-text="Yes, cancel"
+      variant="danger"
+      :busy="busyId !== null"
+      @confirm="confirmCancel"
+      @cancel="pendingCancel = null"
+    >
+      <template v-if="pendingCancel">
+        You're about to cancel your spot in <strong>{{ pendingCancel.title }}</strong>
+        <br />
+        <span class="muted">{{ formatRange(pendingCancel.startTime, pendingCancel.endTime) }}</span>
+      </template>
+    </ConfirmModal>
   </div>
 </template>
 
@@ -362,6 +427,17 @@ onMounted(load);
 }
 .pw-card h3 {
   margin: 0 0 0.75rem;
+}
+
+/* Liability waiver */
+.waiver-card {
+  text-align: left;
+}
+.waiver-card h3 {
+  margin: 0 0 0.5rem;
+}
+.waiver-card .btn {
+  margin-top: 0.25rem;
 }
 
 /* Email preferences */
