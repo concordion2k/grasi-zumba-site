@@ -6,7 +6,8 @@ import { meApi, classesApi, waiverApi } from '@/api/endpoints';
 import { ApiRequestError } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import ClassCard from '@/components/ClassCard.vue';
-import { isPast } from '@/utils/format';
+import ConfirmModal from '@/components/ConfirmModal.vue';
+import { isPast, formatRange } from '@/utils/format';
 import { resizeImageToLimit } from '@/utils/image';
 
 const auth = useAuthStore();
@@ -175,13 +176,25 @@ async function onAvatarChange(e: Event) {
   }
 }
 
-async function cancel(id: string) {
-  busyId.value = id;
+// Cancel confirmation modal.
+const pendingCancel = ref<BookingWithClass['class'] | null>(null);
+
+/** ClassCard "cancel" → open the confirmation modal. */
+function requestCancel(id: string) {
+  pendingCancel.value = bookings.value.find((b) => b.class.classId === id)?.class ?? null;
+}
+
+async function confirmCancel() {
+  const cls = pendingCancel.value;
+  if (!cls) return;
+  busyId.value = cls.classId;
   error.value = '';
   try {
-    await classesApi.cancel(id);
+    await classesApi.cancel(cls.classId);
+    pendingCancel.value = null;
     await load();
   } catch (e) {
+    pendingCancel.value = null;
     error.value = e instanceof ApiRequestError ? e.message : 'Could not cancel.';
   } finally {
     busyId.value = null;
@@ -272,7 +285,7 @@ onMounted(load);
               <p class="muted small">
                 ✅ Signed by <strong>{{ waiver.fullName }}</strong>
                 <span v-if="waiver.signedAt"
-                  >on {{ new Date(waiver.signedAt).toLocaleDateString() }}</span
+                  > on {{ new Date(waiver.signedAt).toLocaleDateString() }}</span
                 >.
               </p>
               <a
@@ -359,7 +372,7 @@ onMounted(load);
                 :cls="toCardClass(b)"
                 :busy="busyId === b.class.classId"
                 can-book
-                @cancel="cancel"
+                @cancel="requestCancel"
               />
             </div>
 
@@ -373,6 +386,22 @@ onMounted(load);
         </section>
       </div>
     </div>
+
+    <ConfirmModal
+      :open="pendingCancel !== null"
+      title="Cancel this booking?"
+      confirm-text="Yes, cancel"
+      variant="danger"
+      :busy="busyId !== null"
+      @confirm="confirmCancel"
+      @cancel="pendingCancel = null"
+    >
+      <template v-if="pendingCancel">
+        You're about to cancel your spot in <strong>{{ pendingCancel.title }}</strong>
+        <br />
+        <span class="muted">{{ formatRange(pendingCancel.startTime, pendingCancel.endTime) }}</span>
+      </template>
+    </ConfirmModal>
   </div>
 </template>
 
