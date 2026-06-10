@@ -22,6 +22,8 @@
   --c-paper: #fff8f3;
   --c-card: #ffffff;
   --c-line: #f0e2d8;
+  /* Translucent header background (frosted bar). */
+  --c-header-bg: rgba(255, 248, 243, 0.85);
   /* Solid deep tone for the footer; dark CTA bands fade into this so there's no gradient seam. */
   --c-night-solid: #2a1a47;
 
@@ -42,6 +44,53 @@
   --shadow-lg: 0 20px 50px rgba(36, 23, 51, 0.18);
 
   --maxw: 1120px;
+}
+
+/* ---- Dark theme ------------------------------------------------------------
+   Set via [data-theme="dark"] on <html> (the no-flash snippet in index.html +
+   the theme store). Brand colors stay; only neutrals/surfaces flip. */
+:root[data-theme='dark'] {
+  --c-ink: #f3edfa;
+  --c-ink-soft: #b3a6c6;
+  --c-paper: #160f1f;
+  --c-card: #241a36;
+  --c-line: #3a2b54;
+  --c-header-bg: rgba(22, 15, 31, 0.85);
+
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+/* Before JS sets data-theme, follow the OS so system-dark users don't see a flash of light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --c-ink: #f3edfa;
+    --c-ink-soft: #b3a6c6;
+    --c-paper: #160f1f;
+    --c-card: #241a36;
+    --c-line: #3a2b54;
+    --c-header-bg: rgba(22, 15, 31, 0.85);
+
+    --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.5);
+  }
+}
+/* Keep tinted pills/alerts legible on dark surfaces (lighter text on the translucent tints). */
+:root[data-theme='dark'] .pill {
+  color: #ffd479;
+}
+:root[data-theme='dark'] .pill-amber {
+  color: #ffb267;
+}
+:root[data-theme='dark'] .pill-green {
+  color: #3fd98f;
+}
+:root[data-theme='dark'] .pill-pink {
+  color: #ff7da3;
+}
+:root[data-theme='dark'] .alert-info {
+  color: #ffb267;
 }
 
 *,
@@ -138,7 +187,7 @@ a:hover {
   color: #fff;
 }
 .btn-ghost {
-  background: #fff;
+  background: var(--c-card);
   color: var(--c-ink);
   box-shadow: var(--shadow-sm);
 }
@@ -151,7 +200,7 @@ a:hover {
   font-size: 0.9rem;
 }
 .btn-danger {
-  background: #fff;
+  background: var(--c-card);
   color: var(--c-pink-dark);
   box-shadow: var(--shadow-sm);
 }
@@ -198,7 +247,7 @@ a:hover {
   padding: 0.7rem 0.9rem;
   border: 2px solid var(--c-line);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--c-card);
   transition: border-color 0.15s ease;
   color: var(--c-ink);
 }

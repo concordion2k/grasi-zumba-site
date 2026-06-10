@@ -67,7 +67,7 @@ async function handleLogout() {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 248, 243, 0.85);
+  background: var(--c-header-bg);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--c-line);
 }
