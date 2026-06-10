@@ -23,38 +23,42 @@ const theme = useThemeStore();
       </nav>
     </div>
     <div class="container foot-base">
-      <p class="muted small">© {{ year }} Grasi Zumba · Made with rhythm &amp; love.</p>
-      <label class="theme-switch" title="Toggle dark mode">
-        <span class="theme-icon" :class="{ on: theme.current === 'light' }" aria-hidden="true">
-          <svg
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="4" />
-            <path
-              d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
-            />
-          </svg>
-        </span>
-        <input
-          type="checkbox"
-          :checked="theme.current === 'dark'"
-          aria-label="Dark mode"
-          @change="theme.toggle()"
-        />
-        <span class="toggle-track"><span class="toggle-thumb"></span></span>
-        <span class="theme-icon" :class="{ on: theme.current === 'dark' }" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-        </span>
-      </label>
+      <div class="foot-copy">
+        <p class="muted small">© {{ year }} Grasi Zumba · Made with rhythm &amp; love.</p>
+      </div>
+      <div class="foot-toggle">
+        <label class="theme-switch" title="Toggle dark mode">
+          <span class="theme-icon" :class="{ on: theme.current === 'light' }" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+              />
+            </svg>
+          </span>
+          <input
+            type="checkbox"
+            :checked="theme.current === 'dark'"
+            aria-label="Dark mode"
+            @change="theme.toggle()"
+          />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="theme-icon" :class="{ on: theme.current === 'dark' }" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </span>
+        </label>
+      </div>
     </div>
   </footer>
 </template>
@@ -93,9 +97,18 @@ const theme = useThemeStore();
   border-top: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
-  flex-wrap: wrap;
+}
+/* Copyright and toggle each take half the width; the copy wraps within its half, the toggle
+   stays pinned to the right of its half (= the footer's right edge). */
+.foot-copy,
+.foot-toggle {
+  flex: 1;
+  min-width: 0;
+}
+.foot-toggle {
+  display: flex;
+  justify-content: flex-end;
 }
 .foot-base p {
   margin: 0;

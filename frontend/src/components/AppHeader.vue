@@ -31,9 +31,26 @@ async function handleLogout() {
         <span class="brand-text"><span class="brand-accent">Zumba</span> by Grasiele</span>
       </RouterLink>
 
-      <button class="burger" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
-        <span></span><span></span><span></span>
-      </button>
+      <div class="mobile-actions">
+        <RouterLink
+          v-if="auth.isAuthenticated"
+          to="/dashboard"
+          class="mobile-avatar"
+          aria-label="My Account"
+          @click="menuOpen = false"
+        >
+          <img
+            v-if="auth.user?.profilePictureUrl"
+            :src="auth.user.profilePictureUrl"
+            alt=""
+            class="mobile-avatar-img"
+          />
+          <span v-else class="mobile-avatar-img mobile-avatar-fallback">{{ initials }}</span>
+        </RouterLink>
+        <button class="burger" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
 
       <nav class="nav" :class="{ open: menuOpen }" @click="menuOpen = false">
         <RouterLink to="/" class="nav-link">Home</RouterLink>
@@ -160,6 +177,32 @@ async function handleLogout() {
   font-weight: 700;
   font-size: 0.8rem;
 }
+/* On mobile, the profile photo sits to the left of the hamburger (not inside the collapsed nav). */
+.mobile-actions {
+  display: none;
+  align-items: center;
+  gap: 0.6rem;
+}
+.mobile-avatar {
+  display: inline-flex;
+}
+.mobile-avatar-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: var(--shadow-sm);
+}
+.mobile-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--grad-samba);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
 .burger {
   display: none;
   flex-direction: column;
@@ -177,8 +220,15 @@ async function handleLogout() {
 }
 
 @media (max-width: 760px) {
+  .mobile-actions {
+    display: flex;
+  }
   .burger {
     display: flex;
+  }
+  /* The photo now lives by the hamburger, so drop it from the "My Account" link in the menu. */
+  .account-link .nav-avatar {
+    display: none;
   }
   .nav {
     position: absolute;
