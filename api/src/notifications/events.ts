@@ -40,7 +40,8 @@ export type EmailEvent =
       to: { email: string; name: string };
       signedAt: string;
       version: string;
-    };
+    }
+  | { type: 'password.reset'; to: { email: string; name: string }; resetUrl: string };
 
 let sqs: SQSClient | undefined;
 function client(): SQSClient {

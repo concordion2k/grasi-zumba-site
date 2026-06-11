@@ -57,6 +57,9 @@ async function submit() {
           </button>
         </form>
 
+        <p class="center muted forgot">
+          <RouterLink to="/forgot-password">Forgot your password?</RouterLink>
+        </p>
         <p class="center muted switch">
           New here? <RouterLink to="/register">Create an account</RouterLink>
         </p>
@@ -76,8 +79,13 @@ async function submit() {
   width: 100%;
   margin-top: 0.5rem;
 }
+.forgot {
+  margin-top: 1rem;
+  margin-bottom: 0;
+  font-size: 0.9rem;
+}
 .switch {
-  margin-top: 1.25rem;
+  margin-top: 0.5rem;
   margin-bottom: 0;
 }
 .wave {

@@ -9,6 +9,7 @@ import {
   classChangedEmail,
   classCanceledEmail,
   waiverSignedEmail,
+  passwordResetEmail,
 } from './templates.js';
 
 /** Resolve a domain event into the email(s) to send. Shared by the SQS worker and the local
@@ -43,6 +44,10 @@ export async function handleEvent(event: EmailEvent): Promise<void> {
     }
     case 'waiver.signed': {
       await sendEmail(waiverSignedEmail(event.to, event.signedAt, event.version));
+      break;
+    }
+    case 'password.reset': {
+      await sendEmail(passwordResetEmail(event.to, event.resetUrl));
       break;
     }
     default: {
