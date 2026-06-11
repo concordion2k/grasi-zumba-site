@@ -13,6 +13,7 @@
  *   8. Notes for a customer — pk=USER#<id>,      sk begins_with NOTE#
  *   9. Session by token     — pk=SESSION#<hash>, sk=SESSION       (TTL via expiresAt)
  *  10. A user's sessions    — GSI1: gsi1pk=USERSESSIONS#<id>
+ *  11. Password-reset token — pk=PWRESET#<hash>, sk=PWRESET       (single-use, TTL via expiresAt)
  */
 
 export const GSI1 = 'gsi1';
@@ -34,6 +35,7 @@ export const key = {
     sk: `NOTE#${noteId}`,
   }),
   session: (tokenHash: string) => ({ pk: `SESSION#${tokenHash}`, sk: 'SESSION' }),
+  passwordReset: (tokenHash: string) => ({ pk: `PWRESET#${tokenHash}`, sk: 'PWRESET' }),
   siteSettings: () => ({ pk: 'SETTINGS', sk: 'SITE' }),
   waiver: (userId: string) => ({ pk: `USER#${userId}`, sk: 'WAIVER' }),
   ledgerEntry: (userId: string, createdAt: string, entryId: string) => ({

@@ -40,6 +40,15 @@ export const changePasswordSchema = z
     path: ['newPassword'],
   });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1).max(512),
+  password: z.string().min(10, 'Use at least 10 characters').max(200),
+});
+
 export const notificationPrefsSchema = z
   .object({
     notifyNewClass: z.boolean().optional(),

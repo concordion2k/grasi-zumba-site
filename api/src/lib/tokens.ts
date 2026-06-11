@@ -14,6 +14,20 @@ export function hashToken(token: string): string {
   return createHmac('sha256', env.sessionSecret).update(token).digest('hex');
 }
 
+/** Generate a fresh opaque password-reset token (emailed to the user as a link parameter). */
+export function generateResetToken(): string {
+  return randomBytes(32).toString('base64url');
+}
+
+/**
+ * Hash a password-reset token for storage. Like {@link hashToken} we store only the HMAC (peppered
+ * with SESSION_SECRET), but namespaced so a reset-token hash can never collide with or be used as a
+ * session-token hash.
+ */
+export function hashResetToken(token: string): string {
+  return createHmac('sha256', env.sessionSecret).update(`pwreset:${token}`).digest('hex');
+}
+
 /**
  * Stateless, self-verifying unsubscribe token: `<userId>.<hmac>`. No storage needed — we recompute
  * the HMAC to validate. Peppered with SESSION_SECRET (namespaced so it can't be confused with a

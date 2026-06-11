@@ -35,6 +35,19 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('@/views/ForgotPasswordView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
+      // Reached from the emailed link. Not guest-only: the token flow should work and sign the user
+      // in even if a stale session exists.
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('@/views/ResetPasswordView.vue'),
+    },
+    {
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('@/views/DashboardView.vue'),

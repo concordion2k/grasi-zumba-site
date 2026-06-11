@@ -12,6 +12,8 @@ import type {
   LoginRequest,
   UpdateProfileRequest,
   ChangePasswordRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
   CreateClassRequest,
   UpdateClassRequest,
   PresignUploadResponse,
@@ -61,6 +63,10 @@ export const authApi = {
   register: (body: RegisterRequest) => api.post<AuthResponse>('/auth/register', body),
   login: (body: LoginRequest) => api.post<AuthResponse>('/auth/login', body),
   logout: () => api.post<{ ok: true }>('/auth/logout'),
+  forgotPassword: (body: ForgotPasswordRequest) =>
+    api.post<{ ok: true }>('/auth/forgot-password', body),
+  resetPassword: (body: ResetPasswordRequest) =>
+    api.post<AuthResponse>('/auth/reset-password', body),
 };
 
 export const classesApi = {

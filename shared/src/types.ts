@@ -154,6 +154,17 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+/** Request a password-reset email (sent only if the address has an account). */
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+/** Complete a password reset using the tokenised link from the email. */
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
 export interface ContactRequest {
   name: string;
   email: string;

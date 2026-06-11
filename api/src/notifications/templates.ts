@@ -105,6 +105,30 @@ export function welcomeEmail(name: string): OutgoingEmail {
   return { to: '', subject, text, html };
 }
 
+/** Transactional password-reset link. Always sent (not gated on notification prefs). */
+export function passwordResetEmail(
+  to: { email: string; name: string },
+  resetUrl: string,
+): OutgoingEmail {
+  const subject = 'Reset your password';
+  const text =
+    `Hi ${to.name},\n\n` +
+    `We received a request to reset the password for your ${BRAND} account.\n\n` +
+    `Reset it here (this link expires in 1 hour):\n${resetUrl}\n\n` +
+    `If you didn't request this, you can safely ignore this email — your password won't change.\n\n` +
+    `Vem dançar!\nGrasi`;
+  const html = shell(
+    `Reset your password 🔒`,
+    `<p style="line-height:1.6">Hi ${esc(to.name)}, we received a request to reset the password for
+     your ${BRAND} account.</p>
+     <p>${button(resetUrl, 'Reset your password →')}</p>
+     <p style="line-height:1.6;color:#5b4d6b;font-size:14px">This link expires in <strong>1 hour</strong>.
+     If you didn't request this, you can safely ignore this email — your password won't change.</p>
+     <p style="margin-top:16px">Vem dançar!<br/>Grasi</p>`,
+  );
+  return { to: to.email, subject, text, html };
+}
+
 /** Confirmation that a user signed the liability waiver (with a link to their copy). */
 export function waiverSignedEmail(
   to: { email: string; name: string },
