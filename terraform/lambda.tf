@@ -33,6 +33,14 @@ resource "aws_lambda_function" "api" {
       COOKIE_SECURE          = "true"
       EMAIL_QUEUE_URL        = aws_sqs_queue.email.url
       NODE_OPTIONS           = "--enable-source-maps"
+
+      STRIPE_SECRET_KEY         = var.stripe_secret_key
+      STRIPE_WEBHOOK_SECRET     = var.stripe_webhook_secret
+      STRIPE_PRICE_PACK_5       = var.stripe_price_pack_5
+      STRIPE_PRICE_PACK_10      = var.stripe_price_pack_10
+      STRIPE_PRICE_PACK_20      = var.stripe_price_pack_20
+      STRIPE_PRICE_DROPIN       = var.stripe_price_dropin
+      STRIPE_PRICE_SUBSCRIPTION = var.stripe_price_subscription
     }
   }
 

@@ -27,6 +27,8 @@ import type {
   BillingSummary,
   LedgerEntry,
   MyBillingResponse,
+  CheckoutItem,
+  CheckoutResponse,
 } from '@grasi/shared';
 import { api, uploadToS3 } from './client.js';
 
@@ -47,6 +49,11 @@ export const waiverApi = {
 
 export const unsubscribeApi = {
   confirm: (token: string) => api.post<UnsubscribeResponse>('/unsubscribe', { token }),
+};
+
+export const billingApi = {
+  /** Start a Stripe Checkout session; returns the URL to redirect the browser to. */
+  checkout: (item: CheckoutItem) => api.post<CheckoutResponse>('/billing/checkout', { item }),
 };
 
 export const authApi = {

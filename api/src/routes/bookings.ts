@@ -5,7 +5,7 @@ import { requireAuth, currentUser } from '../middleware/auth.js';
 import { bookClass, cancelBooking, listUserBookings } from '../domain/bookings.js';
 import { getClass, toZumbaClass } from '../domain/classes.js';
 import { hasSignedCurrentWaiver } from '../domain/waiver.js';
-import { consumeBookingCredit, bookingUsedCredit, refundBookingCredit } from '../domain/billing.js';
+import { bookingUsedCredit, refundBookingCredit } from '../domain/billing.js';
 import { dispatchBookingConfirmed } from '../notifications/dispatch.js';
 import { HttpError } from '../lib/errors.js';
 
@@ -16,22 +16,35 @@ bookingRoutes.use('*', requireAuth);
 bookingRoutes.post('/:classId/book', async (c) => {
   const user = currentUser(c);
   const classId = c.req.param('classId');
-  // Gate: a signed, current-version liability waiver is required before booking.
+  // Gate 1: a signed, current-version liability waiver is required before booking.
   if (!(await hasSignedCurrentWaiver(user.userId))) {
     throw new HttpError(403, 'Please sign the liability waiver before booking a class.', {
       code: 'waiver_required',
     });
   }
-  await bookClass({ userId: user.userId, name: user.name, email: user.email }, classId);
   const cls = await getClass(classId);
-  if (cls) {
-    // Confirmation email (fire-and-forget, honours the user's preference).
-    dispatchBookingConfirmed(user, cls);
-    // Spend a class credit (best-effort; subscribers/credit-less customers are no-ops).
-    await consumeBookingCredit(user, classId, cls.title).catch((err) =>
-      console.error('[billing] consume credit failed', err),
+  if (!cls) {
+    throw new HttpError(404, 'This class is no longer available.', { code: 'class_not_found' });
+  }
+
+  // Gate 2: the booking must be paid for — an active subscription covers it, otherwise it costs one
+  // class credit. No subscription and no credits → can't book (prompt them to buy). The credit is
+  // then spent atomically inside bookClass, so this check + the spend can't disagree.
+  const subscribed = Boolean(user.subscription?.active);
+  if (!subscribed && (user.classCredits ?? 0) < 1) {
+    throw new HttpError(
+      403,
+      'You need a class credit to book. Buy a class pack or a drop-in to continue.',
+      { code: 'insufficient_credits' },
     );
   }
+  const payment = subscribed
+    ? ({ method: 'subscription' } as const)
+    : ({ method: 'credit', classTitle: cls.title } as const);
+  await bookClass({ userId: user.userId, name: user.name, email: user.email }, classId, payment);
+
+  // Confirmation email (fire-and-forget, honours the user's preference).
+  dispatchBookingConfirmed(user, cls);
   return c.json({ ok: true }, 201);
 });
 

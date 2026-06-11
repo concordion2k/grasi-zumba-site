@@ -87,15 +87,20 @@ async function load() {
   }
 }
 
-function isWaiverRequired(e: unknown): boolean {
-  return (
-    e instanceof ApiRequestError &&
-    e.status === 403 &&
-    typeof e.details === 'object' &&
-    e.details !== null &&
-    (e.details as { code?: string }).code === 'waiver_required'
-  );
+/** Read the `code` an API error carries in its details (waiver_required, insufficient_credits, …). */
+function errorCode(e: unknown): string | undefined {
+  if (e instanceof ApiRequestError && typeof e.details === 'object' && e.details !== null) {
+    return (e.details as { code?: string }).code;
+  }
+  return undefined;
 }
+
+function isWaiverRequired(e: unknown): boolean {
+  return e instanceof ApiRequestError && e.status === 403 && errorCode(e) === 'waiver_required';
+}
+
+// When booking is blocked for lack of credits, show a link to buy a pack/drop-in.
+const needCredits = ref(false);
 
 // Confirmation modal — shared by both book and cancel.
 const pending = ref<{ cls: ZumbaClassWithBookingState; action: 'book' | 'cancel' } | null>(null);
@@ -111,6 +116,7 @@ function requestAction(id: string, action: 'book' | 'cancel') {
 async function doBook(id: string) {
   busyId.value = id;
   error.value = '';
+  needCredits.value = false;
   try {
     await classesApi.book(id);
     await load();
@@ -119,6 +125,7 @@ async function doBook(id: string) {
       router.push({ name: 'waiver', query: { redirect: '/schedule', book: id } });
       return;
     }
+    if (errorCode(e) === 'insufficient_credits') needCredits.value = true;
     error.value = e instanceof ApiRequestError ? e.message : 'Booking failed.';
   } finally {
     busyId.value = null;
@@ -166,7 +173,12 @@ onUnmounted(() => window.removeEventListener('resize', handleResize));
         <p class="muted">Find a class, grab your spot, and come dance with us! 🎉</p>
       </header>
 
-      <div v-if="error" class="alert alert-error">{{ error }}</div>
+      <div v-if="error" class="alert alert-error">
+        {{ error }}
+        <RouterLink v-if="needCredits" to="/pricing" class="alert-cta"
+          >View class packs &amp; drop-ins →</RouterLink
+        >
+      </div>
       <p v-if="!auth.isAuthenticated" class="alert alert-success">
         👋 <RouterLink to="/login">Log in</RouterLink> or
         <RouterLink to="/register">create an account</RouterLink> to book a class.
@@ -231,6 +243,12 @@ onUnmounted(() => window.removeEventListener('resize', handleResize));
 </template>
 
 <style scoped>
+.alert-cta {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
 .page-head {
   margin-bottom: 1.5rem;
 }

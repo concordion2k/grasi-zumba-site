@@ -14,6 +14,8 @@ import { contactRoutes } from './routes/contact.js';
 import { unsubscribeRoutes } from './routes/unsubscribe.js';
 import { waiverPublicRoutes, waiverMeRoutes } from './routes/waiver.js';
 import { meBillingRoutes } from './routes/billing.js';
+import { checkoutRoutes } from './routes/checkout.js';
+import { stripeWebhookRoutes } from './routes/stripe.js';
 import { getSettings } from './domain/settings.js';
 
 export function createApp() {
@@ -48,6 +50,8 @@ export function createApp() {
   app.route('/api/me', myBookingsRoutes);
   app.route('/api/me', profileRoutes);
   app.route('/api/me/billing', meBillingRoutes);
+  app.route('/api/billing', checkoutRoutes); // auth: create checkout session
+  app.route('/api/stripe', stripeWebhookRoutes); // public webhook (CSRF-exempt)
   app.route('/api/admin', adminRoutes);
 
   app.notFound((c) => c.json({ error: 'Not found' }, 404));

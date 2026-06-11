@@ -50,6 +50,45 @@ variable "display_timezone" {
   description = "IANA timezone used to render class dates/times in notification emails."
 }
 
+# --- Stripe (set via TF_VAR_* / CI secrets; never commit real values) ---
+variable "stripe_secret_key" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Stripe secret key (sk_...)."
+}
+variable "stripe_webhook_secret" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Stripe webhook signing secret (whsec_...)."
+}
+variable "stripe_price_pack_5" {
+  type        = string
+  default     = ""
+  description = "Stripe Price ID for the 5-class pack."
+}
+variable "stripe_price_pack_10" {
+  type        = string
+  default     = ""
+  description = "Stripe Price ID for the 10-class pack."
+}
+variable "stripe_price_pack_20" {
+  type        = string
+  default     = ""
+  description = "Stripe Price ID for the 20-class pack."
+}
+variable "stripe_price_dropin" {
+  type        = string
+  default     = ""
+  description = "Stripe Price ID for a single drop-in."
+}
+variable "stripe_price_subscription" {
+  type        = string
+  default     = ""
+  description = "Stripe Price ID for the monthly unlimited subscription."
+}
+
 variable "frontend_origin" {
   type        = string
   default     = "https://localhost"

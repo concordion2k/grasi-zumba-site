@@ -23,6 +23,11 @@ import type { UserRecord } from './users.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** One entry in a DynamoDB TransactWrite (Put/Update/Delete/ConditionCheck). */
+type TxItem = NonNullable<
+  ConstructorParameters<typeof TransactWriteCommand>[0]['TransactItems']
+>[number];
+
 function toLedgerEntry(item: Record<string, unknown>): LedgerEntry {
   return {
     entryId: item.entryId as string,
@@ -94,10 +99,23 @@ interface EntryFields {
   amountCents: number;
   note: string;
   by: string;
+  provider?: 'mock' | 'stripe';
+  providerRef?: string;
 }
 
 function newEntry(fields: EntryFields): LedgerEntry {
   return { entryId: newId(), createdAt: new Date().toISOString(), provider: 'mock', ...fields };
+}
+
+/** Per-object idempotency marker so re-delivered Stripe events don't double-apply. */
+function stripeMarker(userId: string, objectId: string) {
+  return {
+    pk: `USER#${userId}`,
+    sk: `STRIPE#${objectId}`,
+    entity: 'STRIPEEVENT',
+    userId,
+    objectId,
+  };
 }
 
 function ledgerItem(userId: string, entry: LedgerEntry) {
@@ -240,22 +258,17 @@ export async function setSubscription(
   return subscription;
 }
 
-// --- Booking credit consumption (best-effort; never blocks the booking itself) ----------------
+// --- Booking credit consumption -----------------------------------------------------------------
 
 /**
- * Spend one class credit on a booking and flag the booking item so a cancel can refund it. No-op
- * for subscribers (unlimited) or when the customer has no credits (a drop-in is owed instead).
- * Atomic: decrement + flag + ledger entry in one transaction, guarded so the balance never goes
- * negative. A guard failure (raced to zero) is swallowed — the booking still stands.
+ * Transaction items that spend one class credit on a booking and log it to the ledger. Designed to
+ * be merged into the booking transaction (see `bookClass`) so the credit is consumed *atomically*
+ * with the booking — there's no window where a class is booked without a credit being spent. The
+ * credit decrement is guarded (`classCredits >= 1`), so if the customer raced their balance to zero
+ * the whole booking transaction is cancelled. Pair this with a booking Put that sets
+ * `creditUsed: true` so a later cancel can refund it ([[refundBookingCredit]]).
  */
-export async function consumeBookingCredit(
-  user: UserRecord,
-  classId: string,
-  classTitle: string,
-): Promise<void> {
-  if (user.subscription?.active) return;
-  if ((user.classCredits ?? 0) <= 0) return;
-
+export function spendCreditItems(userId: string, classTitle: string): TxItem[] {
   const entry = newEntry({
     type: 'class_booking',
     creditDelta: -1,
@@ -263,36 +276,18 @@ export async function consumeBookingCredit(
     note: `Booked: ${classTitle}`,
     by: 'system',
   });
-  try {
-    await ddb.send(
-      new TransactWriteCommand({
-        TransactItems: [
-          {
-            Update: {
-              TableName: TABLE,
-              Key: key.userProfile(user.userId),
-              UpdateExpression: 'SET classCredits = classCredits - :one',
-              ConditionExpression: 'attribute_exists(pk) AND classCredits >= :one',
-              ExpressionAttributeValues: { ':one': 1 },
-            },
-          },
-          {
-            Update: {
-              TableName: TABLE,
-              Key: key.userBooking(user.userId, classId),
-              UpdateExpression: 'SET creditUsed = :t',
-              ConditionExpression: 'attribute_exists(pk)',
-              ExpressionAttributeValues: { ':t': true },
-            },
-          },
-          { Put: { TableName: TABLE, Item: ledgerItem(user.userId, entry) } },
-        ],
-      }),
-    );
-  } catch (err) {
-    if (err instanceof Error && err.name === 'TransactionCanceledException') return;
-    throw err;
-  }
+  return [
+    {
+      Update: {
+        TableName: TABLE,
+        Key: key.userProfile(userId),
+        UpdateExpression: 'SET classCredits = classCredits - :one',
+        ConditionExpression: 'attribute_exists(pk) AND classCredits >= :one',
+        ExpressionAttributeValues: { ':one': 1 },
+      },
+    },
+    { Put: { TableName: TABLE, Item: ledgerItem(userId, entry) } },
+  ];
 }
 
 /** Whether a booking spent a credit (read before cancelling, since cancel deletes the item). */
@@ -328,4 +323,115 @@ export async function refundBookingCredit(userId: string, classTitle: string): P
       ],
     }),
   );
+}
+
+// --- Stripe-driven entries (called from webhooks; idempotent via a per-object marker) ----------
+
+/** Apply a completed one-time Stripe payment (pack/drop-in): add credits + log the charge, once. */
+export async function applyStripePayment(
+  userId: string,
+  opts: {
+    objectId: string;
+    type: LedgerEntryType;
+    credits: number;
+    amountCents: number;
+    note: string;
+  },
+): Promise<void> {
+  const entry = newEntry({
+    type: opts.type,
+    creditDelta: opts.credits,
+    amountCents: opts.amountCents,
+    note: opts.note,
+    by: 'stripe',
+    provider: 'stripe',
+    providerRef: opts.objectId,
+  });
+  const items: NonNullable<ConstructorParameters<typeof TransactWriteCommand>[0]['TransactItems']> =
+    [
+      {
+        Put: {
+          TableName: TABLE,
+          Item: stripeMarker(userId, opts.objectId),
+          ConditionExpression: 'attribute_not_exists(pk)',
+        },
+      },
+      { Put: { TableName: TABLE, Item: ledgerItem(userId, entry) } },
+    ];
+  if (opts.credits !== 0) {
+    items.push({
+      Update: {
+        TableName: TABLE,
+        Key: key.userProfile(userId),
+        UpdateExpression: 'SET classCredits = if_not_exists(classCredits, :z) + :c',
+        ConditionExpression: 'attribute_exists(pk)',
+        ExpressionAttributeValues: { ':z': 0, ':c': opts.credits },
+      },
+    });
+  }
+  try {
+    await ddb.send(new TransactWriteCommand({ TransactItems: items }));
+  } catch (err) {
+    // Duplicate event (marker exists) or user gone — safe to ignore.
+    if (err instanceof Error && err.name === 'TransactionCanceledException') return;
+    throw err;
+  }
+}
+
+/** Set the user's subscription from Stripe (active/canceled + renewal date). */
+export async function setStripeSubscription(
+  userId: string,
+  opts: { active: boolean; renewsAt: string },
+): Promise<void> {
+  const subscription: SubscriptionStatus = {
+    active: opts.active,
+    plan: 'unlimited',
+    startedAt: new Date().toISOString(),
+    renewsAt: opts.renewsAt,
+    provider: 'stripe',
+  };
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TABLE,
+      Key: key.userProfile(userId),
+      UpdateExpression: 'SET subscription = :s',
+      ConditionExpression: 'attribute_exists(pk)',
+      ExpressionAttributeValues: { ':s': subscription },
+    }),
+  );
+}
+
+/** Log a subscription invoice charge once (initial + renewals). */
+export async function recordStripeInvoice(
+  userId: string,
+  opts: { objectId: string; amountCents: number },
+): Promise<void> {
+  const entry = newEntry({
+    type: 'subscription',
+    creditDelta: 0,
+    amountCents: opts.amountCents,
+    note: 'Unlimited subscription — monthly',
+    by: 'stripe',
+    provider: 'stripe',
+    providerRef: opts.objectId,
+  });
+  try {
+    await ddb.send(
+      new TransactWriteCommand({
+        TransactItems: [
+          {
+            Put: {
+              TableName: TABLE,
+              Item: stripeMarker(userId, opts.objectId),
+              ConditionExpression: 'attribute_not_exists(pk)',
+            },
+          },
+          { Put: { TableName: TABLE, Item: ledgerItem(userId, entry) } },
+        ],
+      }),
+    );
+  } catch (err) {
+    if (err instanceof Error && err.name === 'TransactionCanceledException') return;
+    throw err;
+  }
 }

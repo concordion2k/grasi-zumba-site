@@ -1,5 +1,36 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router';
+import { ref } from 'vue';
+import { RouterLink, useRouter, useRoute } from 'vue-router';
+import type { CheckoutItem } from '@grasi/shared';
+import { billingApi } from '@/api/endpoints';
+import { ApiRequestError } from '@/api/client';
+import { useAuthStore } from '@/stores/auth';
+
+const auth = useAuthStore();
+const router = useRouter();
+const route = useRoute();
+const buying = ref<CheckoutItem | null>(null);
+const error = ref('');
+const canceled = ref(route.query.checkout === 'canceled');
+
+/** Start Stripe Checkout for an item (redirects to Stripe). Prompts login first if needed. */
+async function buy(item: CheckoutItem) {
+  error.value = '';
+  if (!auth.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: '/pricing' } });
+    return;
+  }
+  buying.value = item;
+  try {
+    const { url } = await billingApi.checkout(item);
+    window.location.assign(url);
+  } catch (e) {
+    error.value = e instanceof ApiRequestError ? e.message : 'Could not start checkout.';
+    buying.value = null;
+  }
+}
+
+const packItem = (classes: number): CheckoutItem => `pack_${classes}` as CheckoutItem;
 
 const perClass = 15;
 
@@ -23,7 +54,7 @@ const perClassRate = (p: Pack) => Math.round(p.price / p.classes);
 const faqs = [
   {
     q: 'How do I pay?',
-    a: 'Reserve your spot online, then pay Grasi directly at the studio. Online checkout for packs and subscriptions is coming soon!',
+    a: 'Pay securely online by card — drop-ins, class packs, and the monthly plan all check out through Stripe. Your credits and plan update on your account right after payment.',
   },
   {
     q: 'Do class packs expire?',
@@ -51,6 +82,10 @@ const faqs = [
           Drop in whenever you like, save with a class pack, or go all-in with unlimited classes.
           Every option is just you, the music, and a great workout. 🎶
         </p>
+        <div v-if="error" class="alert alert-error notice">{{ error }}</div>
+        <div v-else-if="canceled" class="alert alert-info notice">
+          Checkout canceled — no charge was made.
+        </div>
       </div>
     </section>
 
@@ -76,7 +111,9 @@ const faqs = [
             <h3>Single class</h3>
             <p class="muted">One class, one payment. No commitment, all the fun.</p>
           </div>
-          <RouterLink to="/schedule" class="btn btn-primary">Book a class</RouterLink>
+          <button class="btn btn-primary" :disabled="buying === 'dropin'" @click="buy('dropin')">
+            {{ buying === 'dropin' ? 'Starting…' : 'Buy a drop-in' }}
+          </button>
         </div>
       </div>
     </section>
@@ -113,13 +150,14 @@ const faqs = [
               <li>✓ Valid for 6 months</li>
               <li>✓ Book any class on the calendar</li>
             </ul>
-            <RouterLink
-              :to="{ name: 'payment-coming-soon', query: { plan: `${p.classes}-class pack` } }"
+            <button
               class="btn"
               :class="p.popular ? 'btn-primary' : 'btn-ghost'"
+              :disabled="buying === packItem(p.classes)"
+              @click="buy(packItem(p.classes))"
             >
-              Get this pack
-            </RouterLink>
+              {{ buying === packItem(p.classes) ? 'Starting…' : 'Get this pack' }}
+            </button>
           </article>
         </div>
       </div>
@@ -155,12 +193,13 @@ const faqs = [
             <p class="monthly-hint">
               ≈ {{ Math.round(monthly.price / perClass) }} classes pays for itself
             </p>
-            <RouterLink
-              :to="{ name: 'payment-coming-soon', query: { plan: 'Monthly unlimited' } }"
+            <button
               class="btn btn-tropical"
+              :disabled="buying === 'subscription'"
+              @click="buy('subscription')"
             >
-              Go unlimited
-            </RouterLink>
+              {{ buying === 'subscription' ? 'Starting…' : 'Go unlimited' }}
+            </button>
           </div>
         </div>
       </div>
@@ -214,6 +253,10 @@ const faqs = [
   color: var(--c-ink-soft);
   max-width: 40rem;
   margin: 0.5rem auto 0;
+}
+.notice {
+  max-width: 32rem;
+  margin: 1.25rem auto 0;
 }
 .section-tint {
   background: linear-gradient(180deg, rgba(255, 204, 41, 0.08), rgba(0, 194, 168, 0.06));

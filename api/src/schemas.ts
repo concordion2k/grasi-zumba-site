@@ -145,6 +145,10 @@ export const setSubscriptionSchema = z.object({
   active: z.boolean(),
 });
 
+export const checkoutSchema = z.object({
+  item: z.enum(['pack_5', 'pack_10', 'pack_20', 'dropin', 'subscription']),
+});
+
 export const presignUploadSchema = z.object({
   contentType: z.enum(ALLOWED_IMAGE_TYPES),
 });

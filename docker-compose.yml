@@ -35,6 +35,10 @@ services:
       dockerfile: api/Dockerfile.dev
     ports:
       - '8787:8787'
+    # Pulls in STRIPE_* (and any other local-only) vars. The explicit `environment:` list below
+    # overrides any overlapping keys, so container-internal hosts (localstack, etc.) stay correct.
+    env_file:
+      - api/.env
     environment:
       - TABLE_NAME=grasi-zumba-local
       - UPLOADS_BUCKET=grasi-zumba-uploads-local
