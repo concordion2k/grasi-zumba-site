@@ -9,3 +9,13 @@ frontend_origin = "https://zumbabygrasiele.com"
 
 # Emails auto-promoted to admin on register/login. Register with this email in prod to become admin.
 admin_bootstrap_emails = ["concordion@mac.com"]
+
+# --- Stripe price IDs (TEST mode / sandbox) — public identifiers, not secrets ---
+# The real secrets (stripe_secret_key, stripe_webhook_secret) are NOT here: they come from GitHub
+# Actions secrets via TF_VAR_* in .github/workflows/deploy.yml.
+# Swap these to the live `price_…` IDs (and the dashboard to Live mode) when going live.
+stripe_price_pack_5       = "price_1TgvUKD6MioECHkjZSYYGvnw"
+stripe_price_pack_10      = "price_1TgvUnD6MioECHkjg8yRnq2z"
+stripe_price_pack_20      = "price_1TgvW4D6MioECHkjikLvj21F"
+stripe_price_dropin       = "price_1TgvTCD6MioECHkjry5l1yxn"
+stripe_price_subscription = "price_1TgvWtD6MioECHkjck77htp0"

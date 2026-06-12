@@ -257,6 +257,8 @@ export interface LedgerEntry {
   /** Who recorded it — an admin's name now; 'stripe' once real payments land. */
   by: string;
   provider: 'mock' | 'stripe';
+  /** Stripe object id (checkout session / invoice) for entries created from a real payment. */
+  providerRef?: string;
 }
 
 export interface SubscriptionStatus {
@@ -305,6 +307,17 @@ export interface MyBillingResponse {
   summary: MyBillingSummary;
   /** The customer's payment history (drop-ins, pack purchases, subscription charges). */
   purchases: LedgerEntry[];
+}
+
+/** Purchasable items (mapped to Stripe Prices on the server). */
+export type CheckoutItem = 'pack_5' | 'pack_10' | 'pack_20' | 'dropin' | 'subscription';
+
+export interface CheckoutRequest {
+  item: CheckoutItem;
+}
+export interface CheckoutResponse {
+  /** Stripe Checkout URL to redirect the customer to. */
+  url: string;
 }
 
 /** Admin billing actions. */

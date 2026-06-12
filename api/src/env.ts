@@ -48,6 +48,18 @@ export const env = {
   displayTimeZone: optional('DISPLAY_TIMEZONE', 'America/New_York'),
   /** When set, domain events are published to SQS; when unset (local), they run inline. */
   emailQueueUrl: process.env.EMAIL_QUEUE_URL || undefined,
+
+  // Stripe (sandbox/live). Checkout + webhook. Empty locally until configured.
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+  /** Stripe Price IDs for the catalog (created in the Stripe dashboard). */
+  stripePrices: {
+    pack5: process.env.STRIPE_PRICE_PACK_5 || '',
+    pack10: process.env.STRIPE_PRICE_PACK_10 || '',
+    pack20: process.env.STRIPE_PRICE_PACK_20 || '',
+    dropin: process.env.STRIPE_PRICE_DROPIN || '',
+    subscription: process.env.STRIPE_PRICE_SUBSCRIPTION || '',
+  },
 };
 
 export type Env = typeof env;

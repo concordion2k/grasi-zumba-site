@@ -25,10 +25,12 @@ export interface UserRecord {
   notifyNewClass?: boolean;
   notifyBookingConfirm?: boolean;
   notifyClassChange?: boolean;
-  /** Class-credit balance (mock billing). Absent = 0. */
+  /** Class-credit balance. Absent = 0. */
   classCredits?: number;
-  /** Unlimited-plan subscription (mock billing). Absent = none. */
+  /** Unlimited-plan subscription. Absent = none. */
   subscription?: SubscriptionStatus;
+  /** Stripe customer id (created on first checkout). */
+  stripeCustomerId?: string;
 }
 
 /** Defaults for users who predate a given preference (new-class is opt-in; the rest are on). */
@@ -165,6 +167,7 @@ export async function updateUser(
       | 'notifyNewClass'
       | 'notifyBookingConfirm'
       | 'notifyClassChange'
+      | 'stripeCustomerId'
     >
   >,
 ): Promise<UserRecord | null> {
