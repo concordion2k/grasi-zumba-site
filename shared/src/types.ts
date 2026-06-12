@@ -319,6 +319,10 @@ export interface CheckoutResponse {
   /** Stripe Checkout URL to redirect the customer to. */
   url: string;
 }
+export interface BillingPortalResponse {
+  /** Stripe Billing Customer Portal URL to redirect the customer to. */
+  url: string;
+}
 
 /** Admin billing actions. */
 export interface AdjustCreditsRequest {

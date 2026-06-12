@@ -86,3 +86,19 @@ checkoutRoutes.post('/checkout', async (c) => {
 
   return c.json({ url: session.url });
 });
+
+/**
+ * Open the Stripe Billing Customer Portal for the current user (cancel/manage the subscription,
+ * update the card, view invoices). Stripe hosts it; our subscription state syncs back via the
+ * customer.subscription.* webhooks. Returns the URL to redirect the browser to.
+ */
+checkoutRoutes.post('/portal', async (c) => {
+  if (!stripeEnabled()) throw badRequest('Online payments are not configured yet');
+  const user = currentUser(c);
+  const customer = await getOrCreateStripeCustomer(user);
+  const session = await stripe().billingPortal.sessions.create({
+    customer,
+    return_url: `${env.frontendOrigin}/dashboard`,
+  });
+  return c.json({ url: session.url });
+});
