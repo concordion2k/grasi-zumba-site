@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 import { useThemeStore } from '@/stores/theme';
+import CertViewer from '@/components/CertViewer.vue';
 
 const year = new Date().getFullYear();
 const theme = useThemeStore();
@@ -12,6 +13,17 @@ const theme = useThemeStore();
       <div class="foot-brand">
         <span class="logo">💃🏽 Zumba by Grasiele</span>
         <p class="muted small">Energia do Rio, na sua vizinhança. Vem dançar! 🇧🇷</p>
+        <CertViewer v-slot="{ open }">
+          <button
+            type="button"
+            class="cert-badge"
+            aria-label="View Grasi's Zumba instructor certificate"
+            @click="open"
+          >
+            <span class="cert-emoji" aria-hidden="true">🪪</span>
+            <span class="cert-caption muted small">Certified Zumba® Instructor</span>
+          </button>
+        </CertViewer>
       </div>
       <nav class="foot-links" aria-label="Footer">
         <RouterLink to="/schedule">Schedule</RouterLink>
@@ -168,6 +180,38 @@ const theme = useThemeStore();
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 1.2rem;
+}
+/* Certificate credential — click to enlarge the actual certificate. */
+.cert-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+  text-align: left;
+}
+.cert-emoji {
+  font-size: 1.15rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.cert-badge:hover .cert-emoji {
+  transform: scale(1.12);
+}
+.cert-badge:hover .cert-caption {
+  color: var(--c-yellow);
+}
+.cert-badge:focus-visible {
+  outline: 2px solid var(--c-yellow);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+.cert-caption {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .small {
   font-size: 0.85rem;
