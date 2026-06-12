@@ -53,8 +53,13 @@ jobs:
           terraform_version: 1.9.8
 
       # Provisions/updates all infra AND ships the freshly built api/dist as the Lambda package.
+      # Non-secret config (incl. Stripe price IDs) is auto-loaded from terraform/prod.auto.tfvars.
+      # Only true secrets are passed here, from GitHub Actions secrets via TF_VAR_*.
       - name: Terraform apply
         working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          TF_VAR_stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
+          TF_VAR_stripe_webhook_secret: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
         run: |
           terraform init -backend-config=backend.hcl
           terraform apply -auto-approve
