@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
+import CertViewer from '@/components/CertViewer.vue';
 
 const services = [
   {
@@ -52,6 +53,9 @@ const pricingTiers = [
             <div v-for="h in highlights" :key="h.label" class="highlight">
               <strong>{{ h.num }}</strong>
               <span class="muted">{{ h.label }}</span>
+              <CertViewer v-if="h.num === 'Licensed'" v-slot="{ open }">
+                <button type="button" class="cert-link" @click="open">See certificate →</button>
+              </CertViewer>
             </div>
           </div>
         </div>
@@ -171,6 +175,23 @@ const pricingTiers = [
   font-family: var(--font-display);
   font-size: 1.4rem;
   color: var(--c-pink-dark);
+}
+.cert-link {
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--c-pink-dark);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.cert-link:hover {
+  color: var(--c-pink);
 }
 .hero-art {
   position: relative;
