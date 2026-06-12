@@ -31,6 +31,7 @@ import type {
   MyBillingResponse,
   CheckoutItem,
   CheckoutResponse,
+  BillingPortalResponse,
 } from '@grasi/shared';
 import { api, uploadToS3 } from './client.js';
 
@@ -56,6 +57,8 @@ export const unsubscribeApi = {
 export const billingApi = {
   /** Start a Stripe Checkout session; returns the URL to redirect the browser to. */
   checkout: (item: CheckoutItem) => api.post<CheckoutResponse>('/billing/checkout', { item }),
+  /** Open the Stripe Billing Customer Portal (manage/cancel subscription); returns the URL. */
+  portal: () => api.post<BillingPortalResponse>('/billing/portal'),
 };
 
 export const authApi = {

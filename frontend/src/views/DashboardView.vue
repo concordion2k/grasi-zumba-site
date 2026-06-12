@@ -7,7 +7,7 @@ import type {
   LedgerEntryType,
 } from '@grasi/shared';
 import { ALLOWED_IMAGE_TYPES, PROFILE_PICTURE_MAX_BYTES, formatUsd } from '@grasi/shared';
-import { meApi, classesApi, waiverApi } from '@/api/endpoints';
+import { meApi, classesApi, waiverApi, billingApi } from '@/api/endpoints';
 import { ApiRequestError } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import ConfirmModal from '@/components/ConfirmModal.vue';
@@ -20,6 +20,20 @@ const waiver = ref<WaiverStatus | null>(null);
 const billing = ref<MyBillingResponse | null>(null);
 const loading = ref(true);
 const error = ref('');
+const portalBusy = ref(false);
+
+/** Open Stripe's hosted billing portal to manage/cancel the subscription. */
+async function manageSubscription() {
+  portalBusy.value = true;
+  error.value = '';
+  try {
+    const { url } = await billingApi.portal();
+    window.location.assign(url);
+  } catch (e) {
+    error.value = e instanceof ApiRequestError ? e.message : 'Could not open billing management.';
+    portalBusy.value = false;
+  }
+}
 
 const PURCHASE_LABELS: Record<LedgerEntryType, string> = {
   manual_credit: 'Credit added',
@@ -272,6 +286,14 @@ onMounted(load);
                 <p v-if="billing.summary.subscription?.active" class="muted small renews">
                   Renews {{ new Date(billing.summary.subscription.renewsAt).toLocaleDateString() }}
                 </p>
+                <button
+                  v-if="billing.summary.subscription?.active"
+                  class="btn btn-ghost btn-sm manage-sub"
+                  :disabled="portalBusy"
+                  @click="manageSubscription"
+                >
+                  {{ portalBusy ? 'Opening…' : 'Manage subscription' }}
+                </button>
               </div>
 
               <div class="mem-history">
@@ -618,6 +640,9 @@ onMounted(load);
 }
 .renews {
   margin: 0;
+}
+.manage-sub {
+  margin-top: 0.75rem;
 }
 .mem-history {
   border-left: 1px solid var(--c-line);
