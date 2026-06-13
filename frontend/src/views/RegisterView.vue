@@ -12,6 +12,7 @@ const email = ref('');
 const password = ref('');
 const birthday = ref('');
 const notifyNewClass = ref(false);
+const acceptedTerms = ref(false);
 const error = ref('');
 const busy = ref(false);
 
@@ -25,6 +26,7 @@ async function submit() {
       password: password.value,
       birthday: birthday.value,
       notifyNewClass: notifyNewClass.value,
+      acceptedTerms: acceptedTerms.value,
     });
     router.push('/dashboard');
   } catch (e) {
@@ -73,7 +75,18 @@ async function submit() {
             <input v-model="notifyNewClass" type="checkbox" />
             <span>Email me when new classes are announced 🎉</span>
           </label>
-          <button class="btn btn-primary full" :disabled="busy" type="submit">
+          <label class="optin">
+            <input v-model="acceptedTerms" type="checkbox" required />
+            <span>
+              I agree to the
+              <RouterLink to="/terms" target="_blank" @click.stop
+                >Terms &amp; Conditions</RouterLink
+              >
+              and
+              <RouterLink to="/privacy" target="_blank" @click.stop>Privacy Policy</RouterLink>.
+            </span>
+          </label>
+          <button class="btn btn-primary full" :disabled="busy || !acceptedTerms" type="submit">
             {{ busy ? 'Creating…' : 'Create account' }}
           </button>
         </form>
