@@ -130,6 +130,8 @@ export interface RegisterRequest {
   birthday: string;
   /** Opt in to "new class announced" emails at signup (defaults to false). */
   notifyNewClass?: boolean;
+  /** Must be true — the user accepted the Terms & Conditions and Privacy Policy at signup. */
+  acceptedTerms: boolean;
 }
 
 export interface LoginRequest {

@@ -57,6 +57,13 @@ export function composeAddress(a: {
 // ---------------------------------------------------------------------------
 
 /**
+ * Version of the Terms & Conditions / Privacy Policy a user accepts at signup. Bump (date-stamp)
+ * whenever those documents materially change, so the recorded acceptance reflects which version was
+ * agreed to.
+ */
+export const LEGAL_VERSION = '2026-06-13';
+
+/**
  * Bump this whenever the waiver text below changes — users who signed an older version are asked to
  * re-sign, and bookings are gated on having signed the *current* version. Date-stamped for clarity.
  */

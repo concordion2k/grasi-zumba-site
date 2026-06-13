@@ -14,6 +14,9 @@ export const registerSchema = z.object({
   password: z.string().min(10, 'Use at least 10 characters').max(200),
   birthday: isoDate,
   notifyNewClass: z.boolean().optional(),
+  acceptedTerms: z.literal(true, {
+    errorMap: () => ({ message: 'You must accept the Terms and Privacy Policy to continue' }),
+  }),
 });
 
 export const loginSchema = z.object({

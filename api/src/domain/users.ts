@@ -6,6 +6,7 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import type { PublicUser, UserRole, NotificationPrefs, SubscriptionStatus } from '@grasi/shared';
+import { LEGAL_VERSION } from '@grasi/shared';
 import { ddb, TABLE } from '../lib/dynamo.js';
 import { key, gsi1, GSI1 } from '../lib/keys.js';
 import { newId } from '../lib/ids.js';
@@ -31,6 +32,10 @@ export interface UserRecord {
   subscription?: SubscriptionStatus;
   /** Stripe customer id (created on first checkout). */
   stripeCustomerId?: string;
+  /** When the user accepted the Terms & Privacy Policy at signup (ISO). Absent = predates this. */
+  termsAcceptedAt?: string;
+  /** Which version of the Terms/Privacy was accepted (see LEGAL_VERSION). */
+  termsVersion?: string;
 }
 
 /** Defaults for users who predate a given preference (new-class is opt-in; the rest are on). */
@@ -77,6 +82,10 @@ export async function createUser(input: CreateUserInput): Promise<UserRecord> {
     notifyNewClass: input.notifyNewClass ?? DEFAULT_PREFS.notifyNewClass,
     notifyBookingConfirm: DEFAULT_PREFS.notifyBookingConfirm,
     notifyClassChange: DEFAULT_PREFS.notifyClassChange,
+    // Registration requires accepting the Terms/Privacy (enforced by registerSchema), so every new
+    // account records the acceptance at creation.
+    termsAcceptedAt: createdAt,
+    termsVersion: LEGAL_VERSION,
   };
 
   const credential = {
@@ -126,6 +135,8 @@ export async function createUser(input: CreateUserInput): Promise<UserRecord> {
     notifyNewClass: input.notifyNewClass ?? DEFAULT_PREFS.notifyNewClass,
     notifyBookingConfirm: DEFAULT_PREFS.notifyBookingConfirm,
     notifyClassChange: DEFAULT_PREFS.notifyClassChange,
+    termsAcceptedAt: createdAt,
+    termsVersion: LEGAL_VERSION,
   };
 }
 
