@@ -31,3 +31,22 @@ jobs:
         run: npm test
       - name: Build (api + frontend)
         run: npm run build
+
+  integration:
+    name: API integration tests (DynamoDB Local)
+    runs-on: ubuntu-latest # Docker is available on GitHub-hosted ubuntu runners
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Node 22: testcontainers' bundled undici is incompatible with some Node 20.x patches.
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build shared types
+        run: npm run build:shared
+      - name: API integration tests (testcontainers spins up DynamoDB Local)
+        run: npm run test:integration
